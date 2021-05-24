@@ -485,8 +485,8 @@ evalthreads = Evolve.determineThreads(output, parameters, new Parameter(P_EVALTH
         state.breedthreads = breedthreads;
         state.randomSeedOffset = randomSeedOffset;
 
-        output.systemMessage("Threads:  breed/" + breedthreads + " eval/" + evalthreads);
-        output.systemMessage(seedMessage);
+        //output.systemMessage("Threads:  breed/" + breedthreads + " eval/" + evalthreads);
+        //output.systemMessage(seedMessage);
                 
         return state;
         }

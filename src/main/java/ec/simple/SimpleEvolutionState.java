@@ -66,9 +66,23 @@ public class SimpleEvolutionState extends EvolutionState
             //output.message("Generation " + generation +"\tEvaluations So Far " + evaluations);
 
         // EVALUATION
-        statistics.preEvaluationStatistics(this);
+////////////////
+
+           // long time1 = System.currentTimeMillis();
+        {
+            long time1 = System.currentTimeMillis();
+            statistics.preEvaluationStatistics(this);
+            long time2 = System.currentTimeMillis();
+           // System.out.println("preEvaluationStatistics: "+(time2-time1));
+        }
+            long time11 = System.currentTimeMillis();
         evaluator.evaluatePopulation(this);
+            long time21 = System.currentTimeMillis();
+            System.out.println("EvaluationPopulation: "+(time21-time11));
+            long time12 = System.currentTimeMillis();
         statistics.postEvaluationStatistics(this);
+            long time22 = System.currentTimeMillis();
+           // System.out.println("postEvaluationStatistics: "+(time22-time12));
 
         // SHOULD WE QUIT?
         String runCompleteMessage = evaluator.runComplete(this);
@@ -89,9 +103,13 @@ public class SimpleEvolutionState extends EvolutionState
         generation++;
        
         // PRE-BREEDING EXCHANGING
+
         statistics.prePreBreedingExchangeStatistics(this);
+
         population = exchanger.preBreedingExchangePopulation(this);
+
         statistics.postPreBreedingExchangeStatistics(this);
+
 
         String exchangerWantsToShutdown = exchanger.runComplete(this);
         if (exchangerWantsToShutdown!=null)
@@ -100,17 +118,19 @@ public class SimpleEvolutionState extends EvolutionState
             return R_SUCCESS;
             }
 
-        
+            long time3 = System.currentTimeMillis();
         // BREEDING
         statistics.preBreedingStatistics(this);
         population = breeder.breedPopulation(this);
         statistics.postBreedingStatistics(this);
-            
-       
+            long time4 = System.currentTimeMillis();
+            System.out.println("breedPopulation: "+(time4-time3));
+
         // POST-BREEDING EXCHANGING
         statistics.prePostBreedingExchangeStatistics(this);
         population = exchanger.postBreedingExchangePopulation(this);
         statistics.postPostBreedingExchangeStatistics(this);
+
 
         if (checkpoint && (generation - 1) % checkpointModulo == 0) 
             {

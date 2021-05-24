@@ -54,7 +54,8 @@ public class DynamicLinkWeight  implements LinkWeigher {
         }catch (Exception e) {
             log.error(l.src().toString());
             log.error(l.dst().toString());
-            return 0;
+            edgeCostMap.put(l, ScalarWeight.toWeight(1));
+            return 1;
 
         }
 

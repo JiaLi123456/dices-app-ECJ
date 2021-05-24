@@ -229,7 +229,6 @@ public class MutationPipeline extends GPBreedingPipeline
                     return false;
                 }
             }
-
         // checks done!
         return true;
         }

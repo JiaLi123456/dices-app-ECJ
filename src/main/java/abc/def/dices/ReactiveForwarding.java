@@ -51,6 +51,7 @@ import org.onosproject.net.Link;
 import org.onosproject.net.Path;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.device.DeviceService;
+import org.onosproject.net.device.PortStatistics;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.FlowEntry;
@@ -86,6 +87,8 @@ import org.osgi.service.component.ComponentContext;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 
@@ -221,8 +224,12 @@ public class ReactiveForwarding {
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     private LinkService linkService;
     private Timer dacTimer = new Timer();
+    private Timer dataCollection = new Timer();
     private DynamicAdaptiveControlTask dynamicAdaptiveControlTask;
+    private DataCollectionTask dataCollectionTask;
     private LinkWeigher linkWeighter;
+    private File outputIndividualFile=new File("./outputIndividualFile");
+    //private FileWriter outputFw=new FileWriter(outputIndividualFile);
     ////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////
@@ -254,6 +261,16 @@ public class ReactiveForwarding {
 
         ////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////
+        if (Config.collectFitness) {
+            File output = Config.ConfigFile;
+
+            try {
+                FileWriter fw = new FileWriter(output);
+                fw.write("");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
         ////////////////////////////////////////////////////////////////////////
         dynamicAdaptiveControlTask = new DynamicAdaptiveControlTask();
         ////////////////////////////////////////////////////////////////////////
@@ -267,11 +284,20 @@ public class ReactiveForwarding {
         dynamicAdaptiveControlTask.setAppId(appId);
         dynamicAdaptiveControlTask.setFlowTimeout(flowTimeout);
         dynamicAdaptiveControlTask.setFlowPriority(flowPriority);
+
+
         dacTimer.schedule(dynamicAdaptiveControlTask, 0, Config.PROBE_INTERVAL_MS);
+        //////////////////////////////////////////////////////////////////////////////
+        dataCollectionTask=new DataCollectionTask();
+        dataCollectionTask.setDeviceService(deviceService);
+        dataCollectionTask.setLinkService(linkService);
+        //////////////////////////////////////////////////////////////////////////////
+        dataCollection.schedule(dataCollectionTask,0,1000);
         ////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////
-        System.out.println("activateeeeee"+context.toString()+";;;;Starteddddddd:"+appId.id());
+
+        //System.out.println("activateeeeee"+context.toString()+";;;;Starteddddddd:"+appId.id());
         log.info("Started", appId.id());
     }
 
@@ -294,6 +320,8 @@ public class ReactiveForwarding {
         ////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////
         ////////////////////////////////////////////////////////////////////////
+        dataCollectionTask.setExist();
+        dataCollection.cancel();
        // File file=new File("./start.in");
 
 //        if (file.exists()){
@@ -301,7 +329,7 @@ public class ReactiveForwarding {
 //            log.info("delete file start.in");
 //            System.out.println("delete file start.in");
 //        }
-        System.out.println("Stoppedddddddddddddddd:"+System.currentTimeMillis());
+
         log.info("Stopped");
     }
 
@@ -510,7 +538,7 @@ public class ReactiveForwarding {
 
             if (context.isHandled()) {
                 //System.out.println("Congestion is handled already");
-                log.warn("Congestion is handled already");
+                //log.warn("Congestion is handled already");
 
                 return;
             }
@@ -615,10 +643,10 @@ public class ReactiveForwarding {
             ///////////////////////////////////////////////////////////////////////
             ///////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////////
-            List<String> sendId=new ArrayList<>();
-            sendId.add("of:0000000000000001");
-            sendId.add("of:0000000000000002");
-            String receiveId="of:0000000000000005";
+//            List<String> sendId=new ArrayList<>();
+//            sendId.add("of:0000000000000001");
+//            sendId.add("of:0000000000000002");
+//            String receiveId="of:0000000000000005";
 
             //////////////////////////////////////////////////////////////////
 //            ///////////////////////////////////////////////////////////////////
@@ -647,6 +675,16 @@ public class ReactiveForwarding {
 //                System.out.println("///////////////////////////////////////////");
 //            }
             //////////////////////////////////////////////////////////////////
+            for (Link l1:linkService.getLinks()) {
+                long bits=getDeltaTxBits(l1);
+                double utilization=calculateUtilization(l1,bits);
+                if(utilization>1)
+                try {
+                    log.info(l1.src() + " : " + l1.dst() + " : " + ((TempLinkWeight) linkWeighter).getLinkWeight(l1)+" | "+utilization);
+                }catch (Exception e){
+                    log.info(l1.src() + " : " + l1.dst() + " : " + ((DynamicLinkWeight) linkWeighter).getLinkWeight(l1)+" | "+utilization);
+                }
+            }
             //////////////////////////////////////////////////////////////////
 
 
@@ -722,7 +760,7 @@ public class ReactiveForwarding {
         // We don't support (yet) buffer IDs in the Flow Service so
         // packet out first.
         //
-        log.info("install ruleeeeeeeee");
+        //log.info("install ruleeeeeeeee");
 
         Ethernet inPkt = context.inPacket().parsed();
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
@@ -847,9 +885,11 @@ public class ReactiveForwarding {
                 .fromApp(appId)
                 .makeTemporary(flowTimeout)
                 .add();
+if (Config.test) {
+    log.warn("INSTALL: " + " src: " + inPkt.getSourceMAC() + " dst: " + inPkt.getDestinationMAC() + " device id: " + context.inPacket().receivedFrom().deviceId() + " inPort: " + context.inPacket().receivedFrom().port() + " outPort: " + portNumber);
 
-        log.warn("INSTALL: " + " src: " + inPkt.getSourceMAC() + " dst: " + inPkt.getDestinationMAC() + " device id: " +  context.inPacket().receivedFrom().deviceId() + " inPort: " + context.inPacket().receivedFrom().port() + " outPort: " + portNumber);
-        flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
+}
+flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
                                      forwardingObjective);
         forwardPacket(macMetrics);
         //
@@ -878,6 +918,11 @@ public class ReactiveForwarding {
                     if (re instanceof LinkEvent) {
                         LinkEvent le = (LinkEvent) re;
                         if (le.type() == LinkEvent.Type.LINK_REMOVED && blackHoleExecutor != null) {
+                            if (le.type() == LinkEvent.Type.LINK_REMOVED){
+                                log.info(le.toString());
+                            }else{
+                                log.info(blackHoleExecutor.toString());
+                            }
                             blackHoleExecutor.submit(() -> fixBlackhole(le.subject().src()));
                         }
                     }
@@ -899,8 +944,8 @@ public class ReactiveForwarding {
             if (srcHost != null && dstHost != null) {
                 DeviceId srcId = srcHost.location().deviceId();
                 DeviceId dstId = dstHost.location().deviceId();
-                log.trace("SRC ID is {}, DST ID is {}", srcId, dstId);
-
+                //log.trace("SRC ID is {}, DST ID is {}", srcId, dstId);
+                log.warn("SRC ID is {}, DST ID is {}", srcId, dstId);
                 cleanFlowRules(sd, egress.deviceId());
 
                 Set<Path> shortestPaths = srcPaths.get(srcId);
@@ -1042,10 +1087,10 @@ public class ReactiveForwarding {
 
     public void printMetric(MacAddress mac) {
         if (mac != null) {
-            System.out.println(" " + mac + " \t\t\t " + metrics.get(mac));
+            log.info(" " + mac + " \t\t\t " + metrics.get(mac));
         } else {
             for (MacAddress key : metrics.keySet()) {
-                System.out.println(" " + key + " \t\t\t " + metrics.get(key));
+                log.info(" " + key + " \t\t\t " + metrics.get(key));
             }
         }
     }
@@ -1067,7 +1112,37 @@ public class ReactiveForwarding {
 log.info("get flow rules about a connetpoint");
         return builder.build();
     }
+    public long getDeltaTxBits(Link l) {
+        DeviceId deviceId = l.src().deviceId();
+        PortNumber txPortNum = l.src().port();
+        PortStatistics portStats = deviceService.getDeltaStatisticsForPort(deviceId, txPortNum);
 
+        if (portStats == null) {
+            return 0;
+        }
+//        if (Config.test) {
+//            log.info("getDeltaTxBits  portStats.bytesSent() * 8   " + portStats.bytesSent() * 8);
+//        }
+        return portStats.bytesSent() * 8;
+    }
+    public double calculateUtilization(Link l, long throughputPerSec) {
+        String annotateVal = l.annotations().value(Config.BANDWIDTH_KEY);
+        if (annotateVal == null) {
+            annotateVal = Config.DEFAULT_BANDWIDTH;
+        }
+
+        long bandwidth = stringToLong(annotateVal); //Mbps
+        bandwidth = convertMbitToBit(bandwidth);
+
+        // log.info("calculateUtilization(Link l, long throughputPerSec)=="+(double)throughputPerSec / (double)bandwidth);
+        return (double)throughputPerSec / (double)bandwidth;
+    }
+    public long stringToLong(String value) {
+        return Long.valueOf(value);
+    }
+    public long convertMbitToBit(long Mbps) {
+        return Mbps * 1000 * 1000;
+    }
     // Wrapper class for a source and destination pair of MAC addresses
     private final class SrcDstPair {
         final MacAddress src;

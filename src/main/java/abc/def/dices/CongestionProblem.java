@@ -15,6 +15,9 @@ import ec.gp.GPProblem;
 import ec.multiobjective.MultiObjectiveFitness;
 import ec.simple.SimpleProblemForm;
 import ec.util.Parameter;
+
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
@@ -38,6 +41,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
     private Map<SrcDstPair, Long> sdTxBitsMap;
     private Map<Link, Long> simLinkThroughputMap;
     private Map<Link,Long> currentThroughputMap;
+    private Map<Link,Long>currentSimLinkThroughputMap;
 
     private List<SrcDstPair> curSDList;
     private Map<SrcDstPair, Path> sdAltPathListMap;
@@ -47,6 +51,8 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
     public double currentX;
     public double currentY;
     public double currentZ;
+    private List<String> indsString;
+
     //public double currentW=Config.UTILIZATION_THRESHOLD;
 
     public void setup(final EvolutionState state,
@@ -67,8 +73,10 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         this.sdAltPathListMap = new HashMap<>();
         this.sdCurrentPathMap = new HashMap<>();
         this.currentThroughputMap=new HashMap<>();
+        this.currentSimLinkThroughputMap=new HashMap<>();
         this.newWeight=new HashMap<>();
         this.packetLossRateMap=new HashMap<>();
+        this.indsString=runner.getIndsString();
         super.setup(state, base,runner);
         /////////////////////////////
         setCurSDPath();
@@ -85,7 +93,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                     base.push(P_DATA), null);
             log.error("GPData class must subclass from " + abc.def.dices.DoubleData.class);
         }
-        log.info("GP started, subclass from "+ abc.def.dices.DoubleData.class);
+        //log.info("GP started, subclass from "+ abc.def.dices.DoubleData.class);
     }
 
     private void initAndUpdatePacketLossRateMap(){
@@ -93,6 +101,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             packetLossRateMap.put(l,monitorPacketLoss.getPacketLossRate(l));
         }
     }
+
 
     //set the inital value of throughput to 0
     private void initCurrentLinkThroughputMap() {
@@ -104,11 +113,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         for (Link l : linkService.getLinks()) {
             long newValue = monitorUtil.getDeltaTxBits(l);
             currentThroughputMap.put(l,newValue);
+            currentSimLinkThroughputMap.put(l,newValue);
         }
     }
 
     public double getUtilization(Link l){
-        long throughput=currentThroughputMap.get(l);
+        long throughput=currentSimLinkThroughputMap.get(l);
         return monitorUtil.calculateUtilization(l, throughput);
     }
 
@@ -141,7 +151,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
     //set the inital value of throughput to 0
     private void initSimLinkThroughputMap() {
-        log.info("Init Simlink througput map");
+        //log.info("Init Simlink througput map");
         for (Link l : linkService.getLinks()) {
             simLinkThroughputMap.put(l, new Long(0));
         }
@@ -154,13 +164,13 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             int srcCnt = cntSameSrcInCurFlows(sd);
             deltaTxBits /= srcCnt;
             sdTxBitsMap.put(sd, deltaTxBits);
-            Host srcHost = hostService.getHost(HostId.hostId(sd.src));
-            DeviceId srcId = srcHost.location().deviceId();
-            Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
-            DeviceId dstId = dstHost.location().deviceId();
+//            Host srcHost = hostService.getHost(HostId.hostId(sd.src));
+//            DeviceId srcId = srcHost.location().deviceId();
+//            Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
+//            DeviceId dstId = dstHost.location().deviceId();
 
-            log.info("updateSDTxBitsMap.............Demand: {}/{} ->  {}/{} {}",
-                      srcHost.ipAddresses(), srcId, dstHost.ipAddresses(), dstId, deltaTxBits);
+           // log.info("updateSDTxBitsMap.............Demand: {}/{} ->  {}/{} {}",
+                    //  srcHost.ipAddresses(), srcId, dstHost.ipAddresses(), dstId, deltaTxBits);
         }
     }
 
@@ -177,7 +187,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
     public void setSearchRunner(SearchRunner runnner) {
         this.runner = runnner;
-        log.info("setSearchRunner");
+        //log.info("setSearchRunner");
     }
 
     //3 fitnesses
@@ -185,8 +195,9 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                          final Individual ind,
                          final int subpopulation,
                          final int threadnum) {
-
+        long time1 = System.currentTimeMillis();
         MultiObjectiveFitness f = ((MultiObjectiveFitness)ind.fitness);
+
         if (ind.evaluated==false) {
 
             ind.evaluated = true;
@@ -197,6 +208,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
             initSimLinkThroughputMap();
             //simulate, update the value of utilization
+            //updateSDTxBitsMap();
             updateSimLinkThroughputMap(newSolution);
 
 
@@ -212,9 +224,9 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
             //fitness 2
             long costByDiff = calculateDiffFromOrig(newSolution);
-            if (costByDiff == 0) {
-                costByDiff = Config.LARGE_NUM;
-            }
+//            if (costByDiff == 0) {
+//                costByDiff = Config.LARGE_NUM;
+//            }
 
             //fitness 3
             long totalDelay = sumDelay(newSolution);
@@ -226,23 +238,49 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             fn[0] = maxEstimateUtilization;
             fn[1] = costByDiff;
             fn[2] = totalDelay;
-            log.info("fitness : {}, {}, {}",maxEstimateUtilization,costByDiff,totalDelay);
+
+            if (Config.test) {
+                log.info("fitness : {}, {}, {}", maxEstimateUtilization, costByDiff, totalDelay);
+            }
             //log.info("fitness : {}, {}",maxEstimateUtilization,costByDiff);
+            if (Config.collectFitness) {
+//                try {
+                    indsString.add(state.generation + "\t"+fn[0] + "\t"+fn[1] + "\t"+fn[2]);
+//                    fw.append(state.generation + "\t");
+//                    fw.append(fn[0] + "\t");
+//                    fw.append(fn[1] + "\t");
+//                    fw.append(fn[2] + "\t");
+//
+//                    fw.append("\r\n");
+//                    fw.flush();
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+            }
+
 
             f.setObjectives(state, fn);
         }
         else {
-            log.info("already evaluated, do nothing");
+            if (Config.test) {
+                log.info("already evaluated, do nothing");
+            }
+        }
+        if (Config.test) {
+            long time2 = System.currentTimeMillis();
+            log.info("evaluate for one individual 1: " + (time2 - time1));
         }
     }
-
 
     public Map<Link,Double> getNewWeight(){
         return newWeight;
     }
 
-
+    public List<String> getIndString(){
+        return indsString;
+}
     //using the resulting tree of GP to calculate the new links
+
     public Map<SrcDstPair, Path> simLink(final EvolutionState state,
                                          final Individual ind,
                                          final int threadnum) {
@@ -250,35 +288,41 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
        // DynamicLinkWeight linkWeight = (DynamicLinkWeight)DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         TempLinkWeight tempWeight=new TempLinkWeight();
         DoubleData input = (DoubleData)(this.input);
-        for (Link l : linkService.getLinks()) {
-            long delay = monitorUtil.getDelay(l);
-            double utilization=getUtilization(l);
-           // long oldLinkWeight=linkWeight.getLinkWeight(l);
-            //double packetLossRate=monitorPacketLoss.getPacketLossRate(l);
-            //currentX=(double)oldLinkWeight;
-            currentX=getMaxPacketLossRate();
-            currentY=utilization;
-            currentZ=(double)delay;
-
-            ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);
-
-            double newLinkWeight=input.x;
-            newLinkWeight=(int)newLinkWeight;
-            if (newLinkWeight<0){
-                newLinkWeight=newLinkWeight*(-1.0);
-            }
-            tempWeight.setLinkWeight(l,(int)newLinkWeight);
-            if (Config.test) {
-                log.info("Link {} -> {}: util {}", l.src().deviceId(), l.dst().deviceId(), currentY);
-                log.info("Link {} -> {}: MaxPacketLossRate {}", l.src().deviceId(), l.dst().deviceId(), currentX);
-                log.info("Link {} -> {}: delay {}", l.src().deviceId(), l.dst().deviceId(), currentZ);
-                // log.info("Link {} -> {}: delay {}", l.src().deviceId(), l.dst().deviceId(), currentW);
-                log.info(((GPIndividual) ind).toGPString());
-                log.info("resulting new weight: " + newLinkWeight);
-            }
-        }
-
         for (SrcDstPair sd : curSDList) {
+            for (Link l : linkService.getLinks()) {
+                long delay = monitorUtil.getDelay(l);
+                double utilization=getUtilization(l);
+                //Long txBits = sdTxBitsMap.get(sd);
+               // long oldLinkWeight=linkWeight.getLinkWeight(l);
+                //double packetLossRate=monitorPacketLoss.getPacketLossRate(l);
+                //currentX=(double)oldLinkWeight;
+                currentY=utilization;
+                if (utilization<Config.UTILIZATION_THRESHOLD){
+                    currentX=0;
+                }else
+                {
+                    currentX=getPacketLossRate(l);
+                }
+                currentZ=(double)delay;
+
+                ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);
+
+                double newLinkWeight=input.x;
+                newLinkWeight=(int)newLinkWeight;
+                if (newLinkWeight<0){
+                    newLinkWeight=newLinkWeight*(-1.0);
+                }
+                tempWeight.setLinkWeight(l,(int)newLinkWeight);
+                if (Config.test) {
+                    log.info("Link {} -> {}: util {}", l.src().deviceId(), l.dst().deviceId(), currentY);
+                    log.info("Link {} -> {}: MaxPacketLossRate {}", l.src().deviceId(), l.dst().deviceId(), currentX);
+                    log.info("Link {} -> {}: delay {}", l.src().deviceId(), l.dst().deviceId(), currentZ);
+                    // log.info("Link {} -> {}: delay {}", l.src().deviceId(), l.dst().deviceId(), currentW);
+                    log.info(((GPIndividual) ind).toGPString());
+                    log.info("resulting new weight: " + newLinkWeight);
+                }
+            }
+
             Host srcHost = hostService.getHost(HostId.hostId(sd.src));
             DeviceId srcDevId = srcHost.location().deviceId();
             Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
@@ -292,35 +336,57 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                             Config.MAX_NUM_PATHS);
 
             sdAltPathListMap.put(sd, (Path)(allPathSet.toArray()[0]));
+
+            List<Link> oldLinks=sdCurrentPathMap.get(sd);
+            for (Link oL : oldLinks){
+                currentSimLinkThroughputMap.put(oL,currentSimLinkThroughputMap.get(oL)-sdTxBitsMap.get(sd));
+            }
+            List<Link> newLinks=sdAltPathListMap.get(sd).links();
+            for (Link nL:newLinks){
+                currentSimLinkThroughputMap.put(nL,currentSimLinkThroughputMap.get(nL)+sdTxBitsMap.get(sd));
+            }
+            if (Config.test) {
+                log.info("sd-pair:" + sd + "; srcDev" + srcDevId + "; dstDev" + dstDevId +
+                        "; host src:" + srcHost + "; host dst:" + dstHost + "; Path" + allPathSet.toArray()[0]);
+            }
            // System.out.println(sdAltPathListMap.size());
         }
+        log.info("----------------------------------------");
         return sdAltPathListMap;
     }
 
     private long sumDelay(Map<SrcDstPair, Path> newLinksForPair) {
         long sum = 0;
-         for (SrcDstPair key : newLinksForPair.keySet()) {
-            Path sPath = newLinksForPair.get(key);
-            for (Link l : sPath.links()) {
-                sum += monitorUtil.getDelay(l);
+        try {
+            for (SrcDstPair key : curSDList) {
+                Path sPath = newLinksForPair.get(key);
+                for (Link l : sPath.links()) {
+                    sum += monitorUtil.getDelay(l);
+                }
             }
-         }
+        }catch (Exception e){
+            System.out.println(e);
+        }
         return sum;
     }
 
     private long calculateDiffFromOrig(Map<SrcDstPair, Path> newLinksForPair) {
     int distSum = 0;
-    for (SrcDstPair key : sdCurrentPathMap.keySet()) {
-        SrcDstPair sd = key;
-        Path sPath =  newLinksForPair.get(sd);
-        List<Link> sLinkPath = sPath.links();
-        /////////////////////////////////////////////////
-        List<Link> oLinkPath = sdCurrentPathMap.get(sd);
+    try {
+        for (SrcDstPair key : curSDList) {
+            SrcDstPair sd = key;
+            Path sPath = newLinksForPair.get(sd);
+            List<Link> sLinkPath = sPath.links();
+            /////////////////////////////////////////////////
+            List<Link> oLinkPath = sdCurrentPathMap.get(sd);
 //        log.info(String.valueOf(sdCurrentPathMap.keySet()));
 //        log.info(String.valueOf(oLinkPath.size()));
 //        log.info(String.valueOf(sLinkPath.size()));
-        int dist = editLCSDistance(oLinkPath, sLinkPath);
-        distSum += dist;
+            int dist = editLCSDistance(oLinkPath, sLinkPath);
+            distSum += dist;
+        }
+    }catch (Exception e){
+        System.out.println(e);
     }
     return distSum;
 }
@@ -404,6 +470,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
     private void incSimLinkThroughput(Path path, SrcDstPair sd) {
         Long txBits = sdTxBitsMap.get(sd);
+
         for (Link l : path.links()) {
             Long linkThroughput = simLinkThroughputMap.get(l);
             simLinkThroughputMap.put(l, linkThroughput+txBits);
@@ -427,8 +494,14 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             double utilization=getUtilization(l);
            // long oldLinkWeight=linkWeight.getLinkWeight(l);
            // currentX=(double)oldLinkWeight;
-            currentX=getMaxPacketLossRate();
+           // currentX=getPacketLossRate(l);
             currentY=utilization;
+            if (utilization<Config.UTILIZATION_THRESHOLD){
+                currentX=0;
+            }else
+            {
+                currentX=getPacketLossRate(l);
+            }
             currentZ=(double)delay;
             ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);
             double newLinkWeight=input.x;
@@ -440,15 +513,15 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             tempWeight.setLinkWeight(l,(int)newLinkWeight);
             newWeight.put(l,newLinkWeight);
         }
-        System.out.println("curSD:   "+curSDList);
+        //System.out.println("curSD:   "+curSDList);
         for (SrcDstPair sd : curSDList) {
 
             Host srcHost = hostService.getHost(HostId.hostId(sd.src));
             DeviceId srcDevId = srcHost.location().deviceId();
             Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
             DeviceId dstDevId = dstHost.location().deviceId();
-            System.out.println(srcDevId+" ; "+dstDevId);
-            System.out.println(sd.src+" : "+sd.dst);
+            //System.out.println(srcDevId+" ; "+dstDevId);
+            //System.out.println(sd.src+" : "+sd.dst);
             Set<Path> allPathSet =
                     topologyService.getKShortestPaths(
                             topologyService.currentTopology(),
@@ -472,8 +545,14 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             long delay = monitorUtil.getDelay(l);
             double utilization=getUtilization(l);
             //long oldLinkWeight=linkWeight.getLinkWeight(l);
-            currentX=monitorPacketLoss.getMaxPacketLossRate();
+            //currentX=monitorPacketLoss.getMaxPacketLossRate();
             currentY=utilization;
+            if (utilization<Config.UTILIZATION_THRESHOLD){
+                currentX=0;
+            }else
+            {
+                currentX=getPacketLossRate(l);
+            }
             currentZ=(double)delay;
             //currentW=Config.UTILIZATION_THRESHOLD;
             ((GPIndividual)tree).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)tree),this);
@@ -488,15 +567,9 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         }
         return result;
     }
-    private double getMaxPacketLossRate(){
+    private double getPacketLossRate(Link l){
         double result=0;
-        for (Link l : packetLossRateMap.keySet()){
-            double rate=packetLossRateMap.get(l);
-            if (result<rate){
-                result=rate;
-            }
-        }
+        result=packetLossRateMap.get(l);
         return result;
     }
-
 }

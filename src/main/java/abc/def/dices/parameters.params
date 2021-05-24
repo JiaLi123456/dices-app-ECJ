@@ -33,14 +33,14 @@ stat.silent.front = true
 
 
 # generation number
-generations =				50
+generations =				100
 #tells us whether or not we should quit ECJ when it finds an ideal individual;
 #otherwise it will continue until it runs out of generations.
 quit-on-run-complete =			true
 pop = 					ec.Population
 pop.subpops =				1
 pop.subpop.0 = 				ec.Subpopulation
-pop.subpop.0.size =			100
+pop.subpop.0.size =			1000
 
 pop.subpop.0.species.fitness = ec.multiobjective.MultiObjectiveFitness
 init = ec.gp.GPInitializer
@@ -77,7 +77,7 @@ gp.tc.0.returns = nil
 #generates arbitrary trees depth-ﬁrst using Koza’s RAMPED HALF-AND-HALF algorithm. You cannot request a size.
 gp.tc.0.init = ec.gp.koza.HalfBuilder
 gp.tc.0.init.min-depth = 2
-gp.tc.0.init.max-depth = 6
+gp.tc.0.init.max-depth = 3
 gp.tc.0.init.growp = 0.5
 
 pop.subpop.0.species.ind.tree.0.tc = tc0
@@ -105,7 +105,7 @@ gp.koza.ns.nonterminals = 0.9
 gp.koza.ns.root = 0.0
 #if the crossover operation produces a child greater than 17, it is not forwarded on
 #but rather its (presumably smaller) parent is forwarded on in its stead
-gp.koza.xover.maxdepth = 17
+gp.koza.xover.maxdepth = 7
 gp.koza.xover.tries = 1
 
 pop.subpop.0.species.pipe.source.2 = ec.gp.koza.MutationPipeline
@@ -118,14 +118,14 @@ gp.koza.mutate.ns.0 = ec.gp.koza.KozaNodeSelector
 # ec.gp.koza.GrowBuilder generates arbitrary trees depth-ﬁrst using Koza’s GROW algorithm.
 #You cannot request a size. It requires a minimum and maximum depth
 gp.koza.mutate.build.0 = ec.gp.koza.GrowBuilder
-gp.koza.mutate.maxdepth = 17
+gp.koza.mutate.maxdepth = 7
 gp.koza.mutate.tries = 1
 gp.koza.mutate.tree.0=0
 gp.koza.mutate.pipe.ns=ec.gp.koza.KozaNodeSelector
 gp.koza.mutate.equal=true
 #The replacing subtree is generated using a GPNodeBuilder.
-gp.koza.grow.min-depth = 5
-gp.koza.grow.max-depth = 5
+gp.koza.grow.min-depth = 3
+gp.koza.grow.max-depth = 7
 
 select.tournament.size = 7
 

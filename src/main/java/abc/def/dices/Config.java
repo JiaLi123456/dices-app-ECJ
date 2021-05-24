@@ -1,5 +1,9 @@
 package abc.def.dices;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
 public class Config {
     public static final double UTILIZATION_THRESHOLD = 0.8;
     public static final double UTILIZATION_MAX = 1.0;
@@ -16,4 +20,7 @@ public class Config {
     public static final String DEFAULT_BANDWIDTH = "100"; //Mbps
     public static final String DEFAULT_DELAY = "25"; //ms
     public static final boolean test=false;
+    public static final boolean collectFitness=true;
+    public static  final File ConfigFile=new File("./outputIndividualFile");
+
 }

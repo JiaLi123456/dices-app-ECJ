@@ -361,9 +361,6 @@ public class Subpopulation implements Cloneable, Setup
         final PrintWriter writer)
         {
         writer.println(NUM_INDIVIDUALS_PREAMBLE + Code.encode(individuals.size()));
-        System.out.println("...................................");
-            System.out.println(individuals.size());
-            System.out.println("...................................");
         for(int i = 0 ; i < individuals.size(); i++)
             {
             writer.println(INDIVIDUAL_INDEX_PREAMBLE + Code.encode(i));
@@ -380,13 +377,13 @@ public class Subpopulation implements Cloneable, Setup
         int numIndividuals = Code.readIntegerWithPreamble(NUM_INDIVIDUALS_PREAMBLE, state, reader);
 
         if (numIndividuals < 1)
-            state.output.fatal("On reading subpopulation from text stream, the subpopulation size must be >= 1.  The provided value was: " + numIndividuals + ".");
+           // state.output.fatal("On reading subpopulation from text stream, the subpopulation size must be >= 1.  The provided value was: " + numIndividuals + ".");
 
         // read in individuals
         if (numIndividuals != individuals.size())
             {
-            state.output.warnOnce("On reading subpopulation from text stream, the current subpopulation size (" + individuals.size() + " didn't match the number of individuals in the file (" + numIndividuals +
-                ") and so the subpopulation size will change.");
+            //state.output.warnOnce("On reading subpopulation from text stream, the current subpopulation size (" + individuals.size() + " didn't match the number of individuals in the file (" + numIndividuals +
+            //    ") and so the subpopulation size will change.");
             //System.out.println(reader.toString());
             }
                 
@@ -396,8 +393,8 @@ public class Subpopulation implements Cloneable, Setup
               //  System.out.println(i+".........."+((GPIndividual)species.newIndividual(state, reader)).toGPString());
             int j = Code.readIntegerWithPreamble(INDIVIDUAL_INDEX_PREAMBLE, state, reader);
             // sanity check
-            if (j!=i) state.output.warnOnce("On reading subpopulation from text stream, some individual indexes in the subpopulation did not match.  " +
-                "The first was individual " + i + ", which is listed in the file as " + j);
+           // if (j!=i) state.output.warnOnce("On reading subpopulation from text stream, some individual indexes in the subpopulation did not match.  " +
+           //     "The first was individual " + i + ", which is listed in the file as " + j);
             individuals.add(species.newIndividual(state, reader));
 
             }

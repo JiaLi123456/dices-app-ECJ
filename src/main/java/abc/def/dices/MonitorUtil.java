@@ -54,9 +54,9 @@ public class MonitorUtil {
         long bandwidth = stringToLong(annotateVal); //Mbps
         bandwidth = convertMbitToBit(bandwidth);
         long throughput = getDeltaTxBits(l);
-        throughput = convertDeltaToSec(throughput);
+        //throughput = convertDeltaToSec(throughput);
         double linkUtilization = (double)throughput / (double)bandwidth;
-        log.info("monitorLinkUtilization link:"+l.toString()+" utilization" +linkUtilization);
+       // log.info("monitorLinkUtilization link:"+l.toString()+" utilization" +linkUtilization);
 
         return linkUtilization;
     }

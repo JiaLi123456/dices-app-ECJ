@@ -28,6 +28,13 @@ public class MonitorPacketLoss {
         this.linkService=service;
     }
 
+    public double getBytesSent(Link l){
+        return deviceService.getDeltaStatisticsForPort(l.src().deviceId(),l.src().port()).bytesSent();
+    }
+    public double getBytesReceive(Link l){
+        return deviceService.getDeltaStatisticsForPort(l.dst().deviceId(),l.dst().port()).bytesReceived();
+    }
+
     public double getPacketLossRate(Link l){
         double send=deviceService.getDeltaStatisticsForPort(l.src().deviceId(),l.src().port()).bytesSent();
         double receive=deviceService.getDeltaStatisticsForPort(l.dst().deviceId(),l.dst().port()).bytesReceived();
@@ -38,6 +45,7 @@ public class MonitorPacketLoss {
         }
         return result;
     }
+
     public double getMaxPacketLossRate(){
         double result=0;
         for (Link l: linkService.getLinks()){

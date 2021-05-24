@@ -26,6 +26,7 @@ import org.onosproject.net.topology.TopologyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -57,7 +58,9 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     private Individual solutionTree=null;
     private TempLinkWeight linkWeights;
     private SearchRunner runner;
+    private SearchRunner oldRunner;
     private boolean firstOrNot=true;
+
 
     private int nextMonitoringCnt;
 
@@ -72,8 +75,24 @@ public class DynamicAdaptiveControlTask extends TimerTask {
 
     @Override
     public void run() {
-        System.out.println("DynamicAdaptiveControlTask run!");
+//        for (Link l: linkService.getLinks()) {
+//            if (monitorPacketLoss.getPacketLossRate(l)!=0.0) {
+//            System.out.println("********************************");
+//
+//                System.out.println(l.toString() + " : " + monitorPacketLoss.getPacketLossRate(l));
+//                System.out.println(monitorPacketLoss.getBytesSent(l)+" : "+monitorPacketLoss.getBytesReceive(l));
+//
+//            System.out.println("********************************");
+//            }
+//        }
+       // System.out.println("DynamicAdaptiveControlTask run!");
         log.info("DynamicAdaptiveControlTask run!");
+        Set<SrcDstPair> sdSet=monitorUtil.getAllSrcDstPairs( monitorUtil.getAllCurrentFlowEntries());
+        if (Config.test) {
+            for (SrcDstPair sd : sdSet) {
+                log.info(sd.src + " | " + sd.dst + " : " + monitorUtil.getTxBitsPerSec(sd));
+            }
+        }
 
         try{
             long initTime = System.currentTimeMillis();
@@ -111,7 +130,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             }
         }
         //log.info("monitorMaxUtil     Max util: " + max);
-       // System.out.println("monitorMaxUtil     Max util: " + max);
+       //System.out.println("monitorMaxUtil     Max util: " + max);
     }
 
     private boolean monitorLinks() {
@@ -119,26 +138,26 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         for (Link l : links) {
             double lu = monitorUtil.monitorLinkUtilization(l);
             if (lu >= Config.UTILIZATION_THRESHOLD) {
+                //System.out.println(lu);
                 log.warn("Congested!!! " + lu);
-                System.out.println("Congested!!! " + lu);
                 return true;
             }
         }
         log.warn("Not congested!");
-        System.out.println("Not congested");
+        //System.out.println("Not congested");
         return false;
     }
 
     private void avoidCongestionBySearch() {
         runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,monitorPacketLoss,firstOrNot);
         runner.search();
-        System.out.println("avoidCongestionBySearch");
         log.info("avoidCongestionBySearch");
         //ready to change or delete: whether the flow entry is updated automatically based on the weight?
         resolveCongestion(runner);
         adjustLinkWeight(runner);
         solutionTree=runner.getSolution();
         firstOrNot=false;
+        oldRunner=runner;
     }
     public  LinkWeigher getLinkWeights(){
         TempLinkWeight linkWeights=new TempLinkWeight();
@@ -146,6 +165,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         if (solutionTree==null){
             return DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         }
+        //System.out.println(runner.toString());
         Map<Link,Integer> linkWeight=runner.getWeightUsingSolutionTree(solutionTree);
         for (Link l:linkService.getLinks()){
             int weight=linkWeight.get(l);
@@ -192,8 +212,10 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         for (SrcDstPair sd : curSDLinkPathMap.keySet()) {
             List<Link> oLinkPath = curSDLinkPathMap.get(sd);
             List<Link> sLinkPath = solSDLinkPathMap.get(sd);
-            log.info(String.valueOf(sLinkPath.size()));
-            log.info(String.valueOf(oLinkPath.size()));
+            if (Config.test) {
+                log.info(String.valueOf(sLinkPath.size()));
+                log.info(String.valueOf(oLinkPath.size()));
+            }
             List<Link> lcsLinkPath = runner.findLCS(oLinkPath, sLinkPath);
             addFlowEntry(sd, sLinkPath, lcsLinkPath);
             //delFlowEntryAtSrc(sd, oLinkPath, lcsLinkPath);

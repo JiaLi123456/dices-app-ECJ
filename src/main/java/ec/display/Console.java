@@ -876,8 +876,8 @@ public class Console extends JFrame
                 state.evalthreads = evalthreads;
                 state.breedthreads = breedthreads;
                 
-                output.systemMessage("Threads:  breed/" + breedthreads + " eval/" + evalthreads);
-                output.systemMessage(seed_message);
+                //output.systemMessage("Threads:  breed/" + breedthreads + " eval/" + evalthreads);
+                //output.systemMessage(seed_message);
                 
                 state.startFresh();
 

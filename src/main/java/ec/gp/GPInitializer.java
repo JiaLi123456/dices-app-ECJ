@@ -111,7 +111,7 @@ public class GPInitializer extends SimpleInitializer
     public void setupTypes(final EvolutionState state,
         final Parameter base)
         {
-        state.output.message("Processing GP Types");
+        //state.output.message("Processing GP Types");
         
         typeRepository = new Hashtable();
         numAtomicTypes = numSetTypes = 0;
@@ -200,7 +200,7 @@ public class GPInitializer extends SimpleInitializer
         final EvolutionState state,
         final Parameter base)
         {
-        state.output.message("Processing GP Node Constraints");
+        //state.output.message("Processing GP Node Constraints");
         
         nodeConstraintRepository = new Hashtable();
         nodeConstraints = new GPNodeConstraints[SIZE_OF_BYTE];
@@ -243,7 +243,7 @@ public class GPInitializer extends SimpleInitializer
     public void setupFunctionSets(final EvolutionState state,
         final Parameter base)
         {
-        state.output.message("Processing GP Function Sets");
+        //state.output.message("Processing GP Function Sets");
         
         functionSetRepository = new Hashtable();
         // How many GPFunctionSets do we have?
@@ -277,7 +277,7 @@ public class GPInitializer extends SimpleInitializer
         final EvolutionState state,
         final Parameter base)
         {
-        state.output.message("Processing GP Tree Constraints");
+        //state.output.message("Processing GP Tree Constraints");
             
         treeConstraintRepository = new Hashtable();
         treeConstraints = new GPTreeConstraints[SIZE_OF_BYTE];
