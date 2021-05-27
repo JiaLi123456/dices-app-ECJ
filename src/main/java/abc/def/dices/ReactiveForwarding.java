@@ -229,6 +229,7 @@ public class ReactiveForwarding {
     private DataCollectionTask dataCollectionTask;
     private LinkWeigher linkWeighter;
     private File outputIndividualFile=new File("./outputIndividualFile");
+
     //private FileWriter outputFw=new FileWriter(outputIndividualFile);
     ////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////
@@ -610,6 +611,7 @@ public class ReactiveForwarding {
             ////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////
+
             linkWeighter=dynamicAdaptiveControlTask.getLinkWeights();
 
             Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(),
@@ -674,6 +676,7 @@ public class ReactiveForwarding {
 //                }
 //                System.out.println("///////////////////////////////////////////");
 //            }
+
             //////////////////////////////////////////////////////////////////
             for (Link l1:linkService.getLinks()) {
                 long bits=getDeltaTxBits(l1);
