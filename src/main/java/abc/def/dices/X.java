@@ -41,7 +41,7 @@ public class X extends GPNode
         final Problem problem)
         {
         DoubleData rd = ((DoubleData)(input));
-        rd.x = ((CongestionProblem)problem).currentX;
+        //rd.x = ((CongestionProblem)problem).currentX;
         }
     }
 

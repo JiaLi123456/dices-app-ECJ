@@ -16,6 +16,7 @@ import ec.multiobjective.MultiObjectiveFitness;
 import ec.simple.SimpleProblemForm;
 import ec.util.Parameter;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Iterator;
@@ -48,10 +49,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
     private Map<SrcDstPair, List<Link>> sdCurrentPathMap;
     private Map<Link,Double> newWeight;
     private Map<Link, Double> packetLossRateMap;
-    public double currentX;
+    //public double currentX;
     public double currentY;
     public double currentZ;
     private List<String> indsString;
+    private boolean timeRecording=false;
+    private FileWriter fw;
 
     //public double currentW=Config.UTILIZATION_THRESHOLD;
 
@@ -79,6 +82,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         this.indsString=runner.getIndsString();
         super.setup(state, base,runner);
         /////////////////////////////
+        File file=new File("./timeRecording");
+        try {
+            fw=new FileWriter(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         setCurSDPath();
         initSimLinkThroughputMap();
         updateSDTxBitsMap();
@@ -113,7 +122,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         for (Link l : linkService.getLinks()) {
             long newValue = monitorUtil.getDeltaTxBits(l);
             currentThroughputMap.put(l,newValue);
-            currentSimLinkThroughputMap.put(l,newValue);
+           // currentSimLinkThroughputMap.put(l,newValue);
         }
     }
 
@@ -195,25 +204,26 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                          final Individual ind,
                          final int subpopulation,
                          final int threadnum) {
-        long time1 = System.currentTimeMillis();
+
         MultiObjectiveFitness f = ((MultiObjectiveFitness)ind.fitness);
 
         if (ind.evaluated==false) {
+            long time1 = System.currentTimeMillis();
 
             ind.evaluated = true;
 
             Map<SrcDstPair, Path> newSolution = simLink(state, ind, threadnum);
 
             //log.info("evaluate");
-
             initSimLinkThroughputMap();
             //simulate, update the value of utilization
             //updateSDTxBitsMap();
             updateSimLinkThroughputMap(newSolution);
 
-
             //fitness 1
+
             double maxEstimateUtilization = estimateMaxLinkUtilization();
+            long time4=System.currentTimeMillis();
 
 //            for (SrcDstPair sd : newSolution.keySet()){
 //                log.info("sd pair: "+sd.src.toString()+" : "+sd.dst.toString());
@@ -224,6 +234,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
             //fitness 2
             long costByDiff = calculateDiffFromOrig(newSolution);
+            long time5=System.currentTimeMillis();
+            try {
+                fw.write("fitness2"+"\t"+(time5-time4)+"\r\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 //            if (costByDiff == 0) {
 //                costByDiff = Config.LARGE_NUM;
 //            }
@@ -233,6 +249,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD) {
                 totalDelay = Config.LARGE_NUM;
             }
+            long time6=System.currentTimeMillis();
 
             double[] fn = new double[3];
             fn[0] = maxEstimateUtilization;
@@ -266,10 +283,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 log.info("already evaluated, do nothing");
             }
         }
-        if (Config.test) {
-            long time2 = System.currentTimeMillis();
-            log.info("evaluate for one individual 1: " + (time2 - time1));
-        }
+
     }
 
     public Map<Link,Double> getNewWeight(){
@@ -288,8 +302,13 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
        // DynamicLinkWeight linkWeight = (DynamicLinkWeight)DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         TempLinkWeight tempWeight=new TempLinkWeight();
         DoubleData input = (DoubleData)(this.input);
+
+        for (Link l0:linkService.getLinks()){
+            currentSimLinkThroughputMap.put(l0, 0L);
+        }
         for (SrcDstPair sd : curSDList) {
             for (Link l : linkService.getLinks()) {
+
                 long delay = monitorUtil.getDelay(l);
                 double utilization=getUtilization(l);
                 //Long txBits = sdTxBitsMap.get(sd);
@@ -297,13 +316,14 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 //double packetLossRate=monitorPacketLoss.getPacketLossRate(l);
                 //currentX=(double)oldLinkWeight;
                 currentY=utilization;
-                if (utilization<Config.UTILIZATION_THRESHOLD){
-                    currentX=0;
-                }else
-                {
-                    currentX=getPacketLossRate(l);
-                }
+//                if (utilization<Config.UTILIZATION_THRESHOLD){
+//                    currentX=0;
+//                }else
+//                {
+//                    currentX=getPacketLossRate(l);
+//                }
                 currentZ=(double)delay;
+
 
                 ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);
 
@@ -312,10 +332,11 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 if (newLinkWeight<0){
                     newLinkWeight=newLinkWeight*(-1.0);
                 }
+
                 tempWeight.setLinkWeight(l,(int)newLinkWeight);
                 if (Config.test) {
                     log.info("Link {} -> {}: util {}", l.src().deviceId(), l.dst().deviceId(), currentY);
-                    log.info("Link {} -> {}: MaxPacketLossRate {}", l.src().deviceId(), l.dst().deviceId(), currentX);
+                   // log.info("Link {} -> {}: MaxPacketLossRate {}", l.src().deviceId(), l.dst().deviceId(), currentX);
                     log.info("Link {} -> {}: delay {}", l.src().deviceId(), l.dst().deviceId(), currentZ);
                     // log.info("Link {} -> {}: delay {}", l.src().deviceId(), l.dst().deviceId(), currentW);
                     log.info(((GPIndividual) ind).toGPString());
@@ -337,22 +358,38 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
             sdAltPathListMap.put(sd, (Path)(allPathSet.toArray()[0]));
 
-            List<Link> oldLinks=sdCurrentPathMap.get(sd);
-            for (Link oL : oldLinks){
-                currentSimLinkThroughputMap.put(oL,currentSimLinkThroughputMap.get(oL)-sdTxBitsMap.get(sd));
-            }
             List<Link> newLinks=sdAltPathListMap.get(sd).links();
             for (Link nL:newLinks){
-                currentSimLinkThroughputMap.put(nL,currentSimLinkThroughputMap.get(nL)+sdTxBitsMap.get(sd));
+                long throughputPerSec=sdTxBitsMap.get(sd);
+
+                currentSimLinkThroughputMap.put(nL, (long) (currentSimLinkThroughputMap.get(nL)+throughputPerSec));
             }
             if (Config.test) {
                 log.info("sd-pair:" + sd + "; srcDev" + srcDevId + "; dstDev" + dstDevId +
                         "; host src:" + srcHost + "; host dst:" + dstHost + "; Path" + allPathSet.toArray()[0]);
             }
-           // System.out.println(sdAltPathListMap.size());
+            // System.out.println(sdAltPathListMap.size());
         }
-        log.info("----------------------------------------");
         return sdAltPathListMap;
+    }
+
+    public double calculateUtilization(Link l, long throughputPerSec) {
+        String annotateVal = l.annotations().value(Config.BANDWIDTH_KEY);
+        if (annotateVal == null) {
+            annotateVal = Config.DEFAULT_BANDWIDTH;
+        }
+
+        long bandwidth = stringToLong(annotateVal); //Mbps
+        bandwidth = convertMbitToBit(bandwidth);
+
+        // log.info("calculateUtilization(Link l, long throughputPerSec)=="+(double)throughputPerSec / (double)bandwidth);
+        return (double)throughputPerSec / (double)bandwidth;
+    }
+    public long stringToLong(String value) {
+        return Long.valueOf(value);
+    }
+    public long convertMbitToBit(long Mbps) {
+        return Mbps * 1000 * 1000;
     }
 
     private long sumDelay(Map<SrcDstPair, Path> newLinksForPair) {
@@ -496,12 +533,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
            // currentX=(double)oldLinkWeight;
            // currentX=getPacketLossRate(l);
             currentY=utilization;
-            if (utilization<Config.UTILIZATION_THRESHOLD){
-                currentX=0;
-            }else
-            {
-                currentX=getPacketLossRate(l);
-            }
+//            if (utilization<Config.UTILIZATION_THRESHOLD){
+//                currentX=0;
+//            }else
+//            {
+//                currentX=getPacketLossRate(l);
+//            }
             currentZ=(double)delay;
             ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);
             double newLinkWeight=input.x;
@@ -547,12 +584,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             //long oldLinkWeight=linkWeight.getLinkWeight(l);
             //currentX=monitorPacketLoss.getMaxPacketLossRate();
             currentY=utilization;
-            if (utilization<Config.UTILIZATION_THRESHOLD){
-                currentX=0;
-            }else
-            {
-                currentX=getPacketLossRate(l);
-            }
+//            if (utilization<Config.UTILIZATION_THRESHOLD){
+//                currentX=0;
+//            }else
+//            {
+//                currentX=getPacketLossRate(l);
+//            }
             currentZ=(double)delay;
             //currentW=Config.UTILIZATION_THRESHOLD;
             ((GPIndividual)tree).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)tree),this);
