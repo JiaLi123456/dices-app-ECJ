@@ -32,7 +32,7 @@ public class DataCollectionTask extends TimerTask {
     private TopologyService topologyService;
     private FlowObjectiveService flowObjectiveService;
     private MonitorUtil monitorUtil;
-    private MonitorPacketLoss monitorPacketLoss;
+
     private Boolean isExist;
     private FileWriter fw;
    // private FileWriter fw2;

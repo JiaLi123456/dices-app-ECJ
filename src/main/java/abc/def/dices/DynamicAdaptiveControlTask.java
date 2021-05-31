@@ -2,12 +2,9 @@ package abc.def.dices;
 
 import ec.Individual;
 import ec.gp.GPIndividual;
+import org.onlab.packet.MacAddress;
 import org.onosproject.core.ApplicationId;
-import org.onosproject.net.DeviceId;
-import org.onosproject.net.Host;
-import org.onosproject.net.HostId;
-import org.onosproject.net.Link;
-import org.onosproject.net.PortNumber;
+import org.onosproject.net.*;
 import org.onosproject.net.device.DeviceService;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
@@ -54,12 +51,14 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     private int flowPriority;
     private boolean isCongested;
     private MonitorUtil monitorUtil;
-    private MonitorPacketLoss monitorPacketLoss;
+
     private Individual solutionTree=null;
     private TempLinkWeight linkWeights;
     private SearchRunner runner;
     private SearchRunner oldRunner;
     private boolean firstOrNot=true;
+    private CongestionProblem tempCongetsionProblem;
+    private Map<SrcDstPair, Path>solutionPath=null;
 
 
     private int nextMonitoringCnt;
@@ -68,24 +67,13 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         isExit = false;
         isCongested = false;
         monitorUtil = new MonitorUtil();
-        monitorPacketLoss = new MonitorPacketLoss();
+
         nextMonitoringCnt = 0;
 
     }
 
     @Override
     public void run() {
-//        for (Link l: linkService.getLinks()) {
-//            if (monitorPacketLoss.getPacketLossRate(l)!=0.0) {
-//            System.out.println("********************************");
-//
-//                System.out.println(l.toString() + " : " + monitorPacketLoss.getPacketLossRate(l));
-//                System.out.println(monitorPacketLoss.getBytesSent(l)+" : "+monitorPacketLoss.getBytesReceive(l));
-//
-//            System.out.println("********************************");
-//            }
-//        }
-       // System.out.println("DynamicAdaptiveControlTask run!");
         log.info("DynamicAdaptiveControlTask run!");
         Set<SrcDstPair> sdSet=monitorUtil.getAllSrcDstPairs( monitorUtil.getAllCurrentFlowEntries());
         if (Config.test) {
@@ -129,8 +117,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
                 max = lu;
             }
         }
-        //log.info("monitorMaxUtil     Max util: " + max);
-       //System.out.println("monitorMaxUtil     Max util: " + max);
+        log.info("Max util: " + max);
     }
 
     private boolean monitorLinks() {
@@ -138,69 +125,66 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         for (Link l : links) {
             double lu = monitorUtil.monitorLinkUtilization(l);
             if (lu >= Config.UTILIZATION_THRESHOLD) {
-                //System.out.println(lu);
                 log.warn("Congested!!! " + lu);
                 return true;
             }
         }
         log.warn("Not congested!");
-        //System.out.println("Not congested");
         return false;
     }
+    public  String getCurrentTime(){
+        long totalMilliSeconds = System.currentTimeMillis();
+        long totalSeconds = totalMilliSeconds / 1000;
 
+        long currentSecond = totalSeconds % 60;
+
+        long totalMinutes = totalSeconds / 60;
+        long currentMinute = totalMinutes % 60;
+        return (currentMinute+":"+currentSecond);
+    }
     private void avoidCongestionBySearch() {
-        runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,monitorPacketLoss,firstOrNot);
+        runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,firstOrNot);
         runner.search();
+        System.out.println("time7: "+getCurrentTime());
         log.info("avoidCongestionBySearch");
         //ready to change or delete: whether the flow entry is updated automatically based on the weight?
         resolveCongestion(runner);
-        adjustLinkWeight(runner);
-        solutionTree=runner.getSolution();
+        //adjustLinkWeight(runner);
+        if (runner.isSolvable()){ solutionTree=runner.getSolution();}
         firstOrNot=false;
         oldRunner=runner;
+        if (runner.isSolvable()){ tempCongetsionProblem=runner.getCongestionProblem();}
+        if (runner.isSolvable()){solutionPath=runner.getSolutionPath();}
+        System.out.println("time8: "+getCurrentTime());
     }
-    public  LinkWeigher getLinkWeights(){
+    public Individual getSolutionTree(){
+        return solutionTree;
+    }
+    public CongestionProblem getTempCongestionProblem(){
+        return tempCongetsionProblem;
+    }
+    public  LinkWeigher getLinkWeights(LinkService link, Individual solutionTree, CongestionProblem tempCongetsionProblem){
         TempLinkWeight linkWeights=new TempLinkWeight();
-       // System.out.println(solutionTree==null);
         if (solutionTree==null){
             return DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         }
-        //System.out.println(runner.toString());
-        Map<Link,Integer> linkWeight=runner.getWeightUsingSolutionTree(solutionTree);
+        Map<Link,Integer> linkWeight=runner.getWeightUsingSolutionTree(solutionTree, link, tempCongetsionProblem);
         for (Link l:linkService.getLinks()){
             int weight=linkWeight.get(l);
             if ( weight > Config.LARGE_NUM) {
                 weight = (int)Config.LARGE_NUM;
             }
-            //System.out.println("for updates link weight: new weights is:"+weight);
             log.info("for updates link weight: new weights of "+l.src().toString()+" : "+l.dst().toString()+" is:"+weight);
             linkWeights.setLinkWeight(l, weight);
         }
         return linkWeights;
     }
 
-    private void adjustLinkWeight(SearchRunner runner) {
-        if (runner.isSolvable() == false) {
-            log.error("can not be solved");
-            return;
-        }
-        DynamicLinkWeight linkWeight = (DynamicLinkWeight)DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
-        Map<Link,Double> linkWeightPair=runner.getNewWeight();
-        linkWeight.lock();
-        for (Link l : linkService.getLinks()) {
-            double nWeight = linkWeightPair.get(l);
-            if (nWeight < 0 || nWeight > Config.LARGE_NUM) {
-                nWeight = Config.LARGE_NUM;
-            }
-            linkWeight.setLinkWeight(l, (int)Math.round(nWeight));
-            log.info("adjustLinkWeight       for link: "+l.toString()+" new weight is: "+nWeight);
-        }
-        linkWeight.unlock();
-//        for (Link l:linkService.getLinks()){
-//            log.info("new link weight:"+((DynamicLinkWeight)DynamicLinkWeight.DYNAMIC_LINK_WEIGHT).getLinkWeight(l));
-//        }
-    }
+    public Path getPath(SrcDstPair sd){
+        Path path = null;
 
+        return path;
+    }
     private void resolveCongestion(SearchRunner runner) {
 
         if (runner.isSolvable() == false) {
@@ -218,6 +202,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             }
             List<Link> lcsLinkPath = runner.findLCS(oLinkPath, sLinkPath);
             addFlowEntry(sd, sLinkPath, lcsLinkPath);
+
             //delFlowEntryAtSrc(sd, oLinkPath, lcsLinkPath);
         }
     }
@@ -330,13 +315,13 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     public void setDeviceService(DeviceService service) {
         this.deviceService = service;
         monitorUtil.setDeviceService(service);
-        monitorPacketLoss.setDeviceService(service);
+
     }
 
     public void setLinkService(LinkService service) {
         this.linkService = service;
         monitorUtil.setLinkService(service);
-        monitorPacketLoss.setLinkService(service);
+
     }
 
     public void setFlowRuleService(FlowRuleService service) {
@@ -370,4 +355,5 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     public void setFlowObjectiveService(FlowObjectiveService service) {
         this.flowObjectiveService = service;
     }
+
 }

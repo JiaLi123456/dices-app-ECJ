@@ -9,8 +9,11 @@ import ec.util.DataPipe;
 import ec.util.Output;
 import ec.multiobjective.MultiObjectiveFitness;
 import ec.util.ParameterDatabase;
+import org.onlab.packet.MacAddress;
+import org.onosproject.net.DeviceId;
 import org.onosproject.net.Link;
 import org.onosproject.net.Path;
+import org.onosproject.net.flow.FlowEntry;
 import org.onosproject.net.host.HostService;
 import org.onosproject.net.link.LinkService;
 import org.onosproject.net.topology.TopologyService;
@@ -26,7 +29,6 @@ public class SearchRunner {
     private TopologyService topologyService;
     private LinkService linkService;
     private MonitorUtil monitorUtil;
-    private MonitorPacketLoss monitorPacketLoss;
     private HostService hostService;
 
     private Map<SrcDstPair,List<Link>> solutions=new HashMap<>();
@@ -35,23 +37,24 @@ public class SearchRunner {
 
     private EvolutionState state;
     private Individual solution;
-    private Map<Link,Double> newWeight;
+    private Map<Link,Integer> newWeight;
     private  boolean flag;
     private  List<String>indsString;
+    private Map<SrcDstPair,Path>solutionPath=null;
 
 
-    public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil, MonitorPacketLoss monitorPacketLoss,boolean firstOrNot) {
+    public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil,boolean firstOrNot) {
         this.topologyService = topologyService;
         this.linkService = linkService;
         this.hostService = hostService;
         this.monitorUtil = monitorUtil;
-        this.monitorPacketLoss = monitorPacketLoss;
         this.flag=firstOrNot;
         this.indsString=new ArrayList<>();
 
     }
 
     public void search() {
+        Map<SrcDstPair,List<Link>> oldPath=getCurSDPath();
         log.info("Search runner-Search");
         long initTime = System.currentTimeMillis();
         log.warn(String.valueOf(initTime));
@@ -200,7 +203,8 @@ public class SearchRunner {
 //        try {
 //            FileWriter fw=new FileWriter(timeFile);
 
-        solutionTree=getKneeSolution(inds);
+            solutionTree=getKneeSolution(inds);
+           // System.out.println(solutionTree.fitness.fitnessToString());
             if (solutionTree==null){
                 long computingTime = System.currentTimeMillis() - initTime;
                 log.error("no valid solution");
@@ -222,8 +226,9 @@ public class SearchRunner {
                 congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
                 //System.out.println("congestion problem: "+congestionProblem);
                 List<SrcDstPair> srcDstPairs = congestionProblem.getSrcDstPair();
-                Map<SrcDstPair, Path> newMap = congestionProblem.computeLink(evaluatedState, solutionTree, 0);
-                newWeight = congestionProblem.getNewWeight();
+                Map<SrcDstPair, Path> newMap = congestionProblem.simLink(evaluatedState, solutionTree, 0);
+                solutionPath=new HashMap<>(newMap);
+
                 for (SrcDstPair pair : srcDstPairs) {
                     solutions.put(pair, newMap.get(pair).links());
                 }
@@ -234,13 +239,55 @@ public class SearchRunner {
 //                fw.append(computingTime+"\r\n");
 //                fw.flush();
                 //System.out.println("Search time (ms): " + computingTime + "， one search finished.");
+
+
+                ////////////////////////////////////////////
+
+
+                for (SrcDstPair sd : oldPath.keySet()){
+                    String oldPathString="";
+                    for (Link ol : oldPath.get(sd)) {
+                        oldPathString=oldPathString+ol.src().toString()+"_"+ol.dst().toString()+" | ";
+                    }
+
+                    log.info("oldPath: "+sd.src.toString()+" : "+sd.dst.toString()+" : "+oldPathString);
+                }
+
+                for (SrcDstPair sd:solutions.keySet()){
+                    String newPathString="";
+                    for (Link nl : solutions.get(sd)){
+                        newPathString=newPathString+nl.src().toString()+"_"+nl.dst().toString()+" | ";
+                    }
+                    log.info("newPath: "+sd.src.toString()+" : "+sd.dst.toString()+" : "+newPathString);
+                }
+                ////////////////////////////////////////////
             }
         long time6 = System.currentTimeMillis();
         System.out.println("time6: "+(time6-time5)+", "+getCurrentTime());
+
+
 //        } catch (IOException e) {
 //            e.printStackTrace();
 //        }
     }
+
+    private Map<SrcDstPair,List<Link>> getCurSDPath() {
+        Set<FlowEntry> flowEntrySet = monitorUtil.getAllCurrentFlowEntries();
+        Set<SrcDstPair> sdSet = monitorUtil.getAllSrcDstPairs(flowEntrySet);
+        Iterator<SrcDstPair> it = sdSet.iterator();
+        Map<SrcDstPair,List<Link>> result=new HashMap<>();
+        while (it.hasNext()) {
+            SrcDstPair sd = it.next();
+            List<Link> dIdPath = monitorUtil.getCurrentPath(sd);
+            if (dIdPath == null) {
+                it.remove();
+                continue;
+            }
+            result.put(sd, dIdPath);
+        }
+        return  result;
+    }
+
     public  String getCurrentTime(){
         long totalMilliSeconds = System.currentTimeMillis();
         long totalSeconds = totalMilliSeconds / 1000;
@@ -251,20 +298,16 @@ public class SearchRunner {
         long currentMinute = totalMinutes % 60;
         return (currentMinute+":"+currentSecond);
     }
- public List<String>getIndsString(){
+    public List<String>getIndsString(){
         return indsString;
  }
-    public Map<Link,Double> getNewWeight(){
-        return newWeight;
-    }
 
-    public Map<Link,Integer> getWeightUsingSolutionTree(Individual tree){
-//        System.out.println(this.toString());
-//        System.out.println(((GPIndividual)tree).toGPString());
-//        System.out.println(congestionProblem.toString());
-//        System.out.println(state.toString());
-        return ((CongestionProblem)congestionProblem).getIndividualResultWeight(
-                state,tree,0
+    public CongestionProblem getCongestionProblem(){return congestionProblem;}
+
+    public Map<Link,Integer> getWeightUsingSolutionTree(Individual tree,LinkService linkService,CongestionProblem congestionProblem){
+        //System.out.println(((GPIndividual)tree).toGPString());
+        return congestionProblem.getIndividualResultWeight(
+                state,tree,0, linkService
         );
     }
     public Map<SrcDstPair, List<Link>> getCurrentLinkPath() {
@@ -272,59 +315,35 @@ public class SearchRunner {
     }
 
     public Map<SrcDstPair, List<Link>> getSolutionLinkPath() {
-        //System.out.println(solutions);
         return solutions;
+    }
+    public Map<SrcDstPair,Path>getSolutionPath(){
+        return solutionPath;
     }
 
     public List<Link> findLCS(List<Link> x, List<Link> y) {
         return ((CongestionProblem)congestionProblem).findLCS(x, y);
     }
-public void validNumber(ArrayList<Individual> results){
-    List<Individual> validSolutions=new ArrayList<>();
-    OUT: for (Individual s : results) {
-        MultiObjectiveFitness f = ((MultiObjectiveFitness)s.fitness);
-        double[] fitness=f.getObjectives();
-       // log.info("fitness: {},{},{}",fitness[0],fitness[1],fitness[2]);
-        //log.info("fitness: {},{}",fitness[0],fitness[1]);
-        IN: for (int i = 0; i < fitness.length; i++) {
-            if (fitness[i] == Config.LARGE_NUM) {
-                break OUT;
-            }
-        }
-        validSolutions.add(s);
-    }
 
-}
     public Individual getKneeSolution(ArrayList<Individual> results) {
-        log.info("getKneeSolution");
         if (results.size() == 0) {
             log.error("No results!");
             return null;
         }
-        List<Individual> validSolutions=new ArrayList<>();
+        List<Individual> validSolutions=new ArrayList<>(results);
 
         boolean flagV=true;
         for (Individual s : results) {
-            flagV=true;
             MultiObjectiveFitness f = ((MultiObjectiveFitness)s.fitness);
             double[] fitness=f.getObjectives();
-            //log.info("fitness: {},{},{}",fitness[0],fitness[1],fitness[2]);
-            //log.info("fitness: {},{}",fitness[0],fitness[1]);
             for (int i = 0; i < fitness.length; i++) {
                 if (fitness[i] == Config.LARGE_NUM) {
-                    flagV=false;
-                    break;
+                    validSolutions.remove(s);
                 }
             }
-            if (flagV==true) {
-                validSolutions.add(s);
-            }
         }
-
-
         Individual kneeSolution = null;
         int nobj = 3;
-       // int nobj = 2;
         double minValue[] = new double[nobj];
         double maxValue[] = new double[nobj];
         for (int i = 0; i < nobj; i++) {
@@ -380,39 +399,17 @@ public void validNumber(ArrayList<Individual> results){
     public TopologyService getTopologyService(){
         return this.topologyService;
     }
-
     public LinkService getLinkService() {
         return linkService;
     }
-
     public HostService getHostService() {
         return hostService;
     }
     public MonitorUtil getMonitorUtil(){
         return monitorUtil;
     }
-    public MonitorPacketLoss getMonitorPacketLoss(){
-        return monitorPacketLoss;
-    }
     public  Individual getSolution(){
         return solution;
     }
-    public void writeFitness(ArrayList<Individual> results) throws IOException {
-        long totalMilliSeconds = System.currentTimeMillis();
-        long totalSeconds = totalMilliSeconds / 1000;
 
-        long totalMinutes = totalSeconds / 60;
-        long currentMinute = totalMinutes % 60;
-
-        long totalHour = totalMinutes / 60;
-        long currentHour = totalHour % 12;
-        File file=new File("./"+currentHour+currentMinute);
-        FileWriter fw=new FileWriter(file);
-
-        for (Individual individual : results) {
-            fw.write(individual.fitness.fitnessToString()+" "+"\r\n");
-        }
-        fw.flush();
-        fw.close();
-    }
 }

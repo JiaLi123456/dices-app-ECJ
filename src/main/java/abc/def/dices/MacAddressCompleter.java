@@ -30,8 +30,6 @@ import java.util.SortedSet;
 public class MacAddressCompleter implements Completer {
     @Override
     public int complete(String buffer, int cursor, List<String> candidates) {
-       // System.out.println("Does this MacAddressCompleter work?");
-
         // Delegate string completer
         StringsCompleter delegate = new StringsCompleter();
         EventuallyConsistentMap<MacAddress, ReactiveForwardMetrics> macAddress;

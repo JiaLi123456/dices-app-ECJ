@@ -8,12 +8,10 @@ import org.onosproject.net.topology.TopologyEdge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
 
 public class DynamicLinkWeight  implements LinkWeigher {
     public static final LinkWeigher DYNAMIC_LINK_WEIGHT = new DynamicLinkWeight();
@@ -47,23 +45,11 @@ public class DynamicLinkWeight  implements LinkWeigher {
     }
 
     public int getLinkWeight(Link l) {
-        try{
-            ScalarWeight weight = edgeCostMap.get(l);
-            //log.info("get link weigth: "+weight.toString());
-            return (int)weight.value();
-        }catch (Exception e) {
-            log.error(l.src().toString());
-            log.error(l.dst().toString());
-            edgeCostMap.put(l, ScalarWeight.toWeight(1));
-            return 1;
-
-        }
-
-
+        ScalarWeight weight = edgeCostMap.get(l);
+        return (int)weight.value();
     }
 
     public void setLinkWeight(Link l, int weight) {
-        //log.info("set link weight, link "+l.toString()+" weight "+weight);
         edgeCostMap.put(l, new ScalarWeight(weight));
     }
 

@@ -7,7 +7,7 @@ import java.io.IOException;
 public class Config {
     public static final double UTILIZATION_THRESHOLD = 0.8;
     public static final double UTILIZATION_MAX = 1.0;
-    public static final int PROBE_INTERVAL_MS = 3000; //ms
+    public static final int PROBE_INTERVAL_MS = 1000; //ms
     public static final int MAX_NUM_PATHS = 100;
     public static final String LATENCY_KEY = "latency";
     public static final String BANDWIDTH_KEY = "bandwidth";

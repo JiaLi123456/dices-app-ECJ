@@ -107,7 +107,7 @@ public class ReactiveForwarding {
     /////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////
     private Individual solutionTree;
-    private static final int DEFAULT_TIMEOUT = 10;
+    private static final int DEFAULT_TIMEOUT = 1;
     //private static final int DEFAULT_TIMEOUT = 1;
     /////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////
@@ -228,7 +228,6 @@ public class ReactiveForwarding {
     private DynamicAdaptiveControlTask dynamicAdaptiveControlTask;
     private DataCollectionTask dataCollectionTask;
     private LinkWeigher linkWeighter;
-    private File outputIndividualFile=new File("./outputIndividualFile");
 
     //private FileWriter outputFw=new FileWriter(outputIndividualFile);
     ////////////////////////////////////////////////////////////////////////
@@ -285,7 +284,6 @@ public class ReactiveForwarding {
         dynamicAdaptiveControlTask.setAppId(appId);
         dynamicAdaptiveControlTask.setFlowTimeout(flowTimeout);
         dynamicAdaptiveControlTask.setFlowPriority(flowPriority);
-
 
         dacTimer.schedule(dynamicAdaptiveControlTask, 0, Config.PROBE_INTERVAL_MS);
         //////////////////////////////////////////////////////////////////////////////
@@ -344,8 +342,6 @@ public class ReactiveForwarding {
      * Request packet in via packet service.
      */
     private void requestIntercepts() {
-       // System.out.println("resquest Intercepts");
-        log.info("resquest Intercepts");
         TrafficSelector.Builder selector = DefaultTrafficSelector.builder();
         selector.matchEthType(Ethernet.TYPE_IPV4);
         packetService.requestPackets(selector.build(), PacketPriority.REACTIVE, appId);
@@ -375,7 +371,6 @@ public class ReactiveForwarding {
      * @param context the component context
      */
     private void readComponentConfiguration(ComponentContext context) {
-      //  System.out.println("read Component Configuration");
         Dictionary<?, ?> properties = context.getProperties();
 
         Boolean packetOutOnlyEnabled =
@@ -538,9 +533,6 @@ public class ReactiveForwarding {
             // can't do any more to it.
 
             if (context.isHandled()) {
-                //System.out.println("Congestion is handled already");
-                //log.warn("Congestion is handled already");
-
                 return;
             }
 
@@ -579,9 +571,6 @@ public class ReactiveForwarding {
             // Do not process IPv4 multicast packets, let mfwd handle them
             if (ignoreIpv4McastPackets && ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
                 if (id.mac().isMulticast()) {
-                    //System.out.println("Do not process IPv4 multicast packets, let mfwd handle them");
-                    log.info("Do not process IPv4 multicast packets, let mfwd handle them");
-
                     return;
                 }
             }
@@ -589,9 +578,6 @@ public class ReactiveForwarding {
             // Do we know who this is for? If not, flood and bail.
             Host dst = hostService.getHost(id);
             if (dst == null) {
-               // System.out.println("!!!!!!We do not know who this is for then flood");
-                log.warn("flood");
-
                 flood(context, macMetrics);
                 return;
             }
@@ -611,14 +597,19 @@ public class ReactiveForwarding {
             ////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////
+            abc.def.dices.SrcDstPair sdPair= new abc.def.dices.SrcDstPair(macAddress,id.mac());
+            Path path=dynamicAdaptiveControlTask.getPath( sdPair);
+            if (path==null) {
+                solutionTree = dynamicAdaptiveControlTask.getSolutionTree();
+                CongestionProblem temCongestionProblem = dynamicAdaptiveControlTask.getTempCongestionProblem();
+                //System.out.println(macAddress+" : "+id.mac()+" || "+getCurrentTime());
 
-            linkWeighter=dynamicAdaptiveControlTask.getLinkWeights();
+                linkWeighter = dynamicAdaptiveControlTask.getLinkWeights(linkService, solutionTree, temCongestionProblem);
 
-            Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(),
-                                                       pkt.receivedFrom().deviceId(),
-                                                       dst.location().deviceId(),
-                                                       linkWeighter);
-
+                Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(),
+                        pkt.receivedFrom().deviceId(),
+                        dst.location().deviceId(),
+                        linkWeighter);
 
 
 //            for (Path i : paths){
@@ -627,20 +618,19 @@ public class ReactiveForwarding {
 //
 //            }
 
-            ////////////////////////////////////////////////////////////////////
-            ////////////////////////////////////////////////////////////////////
-            ////////////////////////////////////////////////////////////////////
-            if (paths.isEmpty()) {
-                // If there are no paths, flood and bail.
-                log.warn("There are no paths, just flood");
+                ////////////////////////////////////////////////////////////////////
+                ////////////////////////////////////////////////////////////////////
+                ////////////////////////////////////////////////////////////////////
+                if (paths.isEmpty()) {
+                    // If there are no paths, flood and bail.
+                    flood(context, macMetrics);
+                    return;
+                }
 
-                flood(context, macMetrics);
-                return;
+                // Otherwise, pick a path that does not lead back to where we
+                // came from; if no such path, flood and bail.
+                path = pickForwardPathIfPossible(paths, pkt.receivedFrom().port());
             }
-
-            // Otherwise, pick a path that does not lead back to where we
-            // came from; if no such path, flood and bail.
-            Path path = pickForwardPathIfPossible(paths, pkt.receivedFrom().port());
 
             ///////////////////////////////////////////////////////////////////////
             ///////////////////////////////////////////////////////////////////////
@@ -692,12 +682,13 @@ public class ReactiveForwarding {
 
 
             if (path == null) {
+                /*
                 Host srcHost = hostService.getHost(HostId.hostId(ethPkt.getSourceMAC()));
                 DeviceId srcId = srcHost.location().deviceId();
                 Host dstHost = hostService.getHost(HostId.hostId(ethPkt.getDestinationMAC()));
                 DeviceId dstId = dstHost.location().deviceId();
                 log.warn("Don't know where to go from here {} for {}:{} -> {}:{}",
-                         pkt.receivedFrom(), srcId, ethPkt.getSourceMAC(), dstId, ethPkt.getDestinationMAC());
+                         pkt.receivedFrom(), srcId, ethPkt.getSourceMAC(), dstId, ethPkt.getDestinationMAC());*/
                 //logPath(paths);
                 flood(context, macMetrics);
                 return;
@@ -708,7 +699,16 @@ public class ReactiveForwarding {
             installRule(context, path.src().port(), macMetrics);
         }
     }
+    public  String getCurrentTime(){
+        long totalMilliSeconds = System.currentTimeMillis();
+        long totalSeconds = totalMilliSeconds / 1000;
 
+        long currentSecond = totalSeconds % 60;
+
+        long totalMinutes = totalSeconds / 60;
+        long currentMinute = totalMinutes % 60;
+        return (currentMinute+":"+currentSecond);
+    }
     private void logPath(Set<Path> paths) {
         for (Path p : paths) {
             for (Link l : p.links()) {
@@ -763,8 +763,6 @@ public class ReactiveForwarding {
         // We don't support (yet) buffer IDs in the Flow Service so
         // packet out first.
         //
-        //log.info("install ruleeeeeeeee");
-
         Ethernet inPkt = context.inPacket().parsed();
         TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
 
@@ -914,18 +912,10 @@ flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
         public void event(TopologyEvent event) {
             List<Event> reasons = event.reasons();
             if (reasons != null) {
-                //System.out.println("Internal TopologyListener even");
-                //log.info("Internal TopologyListener even");
-
                 reasons.forEach(re -> {
                     if (re instanceof LinkEvent) {
                         LinkEvent le = (LinkEvent) re;
                         if (le.type() == LinkEvent.Type.LINK_REMOVED && blackHoleExecutor != null) {
-                            if (le.type() == LinkEvent.Type.LINK_REMOVED){
-                                log.info(le.toString());
-                            }else{
-                                log.info(blackHoleExecutor.toString());
-                            }
                             blackHoleExecutor.submit(() -> fixBlackhole(le.subject().src()));
                         }
                     }
@@ -1023,9 +1013,6 @@ flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
 
     // Returns a set of src/dst MAC pairs extracted from the specified set of flow entries
     private Set<SrcDstPair> findSrcDstPairs(Set<FlowEntry> rules) {
-        //System.out.println("Returns a set of src/dst MAC pairs extracted from the specified set of flow entries");
-        log.info("Returns a set of src/dst MAC pairs extracted from the specified set of flow entries");
-
         ImmutableSet.Builder<SrcDstPair> builder = ImmutableSet.builder();
         for (FlowEntry r : rules) {
             MacAddress src = null, dst = null;
@@ -1036,7 +1023,6 @@ flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
                     src = ((EthCriterion) cr).mac();
                 }
             }
-          //  System.out.println(src.toString()+":::::::::"+dst.toString());
             builder.add(new SrcDstPair(src, dst));
         }
         return builder.build();
@@ -1111,21 +1097,18 @@ flowObjectiveService.forward(context.inPacket().receivedFrom().deviceId(),
                 });
             }
         });
-//System.out.println("get flow rules about a connetpoint");
-log.info("get flow rules about a connetpoint");
         return builder.build();
     }
+
+    //////////////////////////////////////////
+    //////////////////////////////////////////
     public long getDeltaTxBits(Link l) {
         DeviceId deviceId = l.src().deviceId();
         PortNumber txPortNum = l.src().port();
         PortStatistics portStats = deviceService.getDeltaStatisticsForPort(deviceId, txPortNum);
-
         if (portStats == null) {
             return 0;
         }
-//        if (Config.test) {
-//            log.info("getDeltaTxBits  portStats.bytesSent() * 8   " + portStats.bytesSent() * 8);
-//        }
         return portStats.bytesSent() * 8;
     }
     public double calculateUtilization(Link l, long throughputPerSec) {
@@ -1133,12 +1116,9 @@ log.info("get flow rules about a connetpoint");
         if (annotateVal == null) {
             annotateVal = Config.DEFAULT_BANDWIDTH;
         }
-
         long bandwidth = stringToLong(annotateVal); //Mbps
         bandwidth = convertMbitToBit(bandwidth);
-
-        // log.info("calculateUtilization(Link l, long throughputPerSec)=="+(double)throughputPerSec / (double)bandwidth);
-        return (double)throughputPerSec / (double)bandwidth;
+          return (double)throughputPerSec / (double)bandwidth;
     }
     public long stringToLong(String value) {
         return Long.valueOf(value);
@@ -1146,6 +1126,8 @@ log.info("get flow rules about a connetpoint");
     public long convertMbitToBit(long Mbps) {
         return Mbps * 1000 * 1000;
     }
+    //////////////////////////////////////////////
+    //////////////////////////////////////////////
     // Wrapper class for a source and destination pair of MAC addresses
     private final class SrcDstPair {
         final MacAddress src;

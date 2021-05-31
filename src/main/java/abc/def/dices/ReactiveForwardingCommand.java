@@ -31,7 +31,6 @@ public class ReactiveForwardingCommand extends AbstractShellCommand {
     String mac = null;
     @Override
     protected void execute() {
-        log.info("start execute reactive forwarding service");
         ReactiveForwarding reactiveForwardingService = AbstractShellCommand.get(ReactiveForwarding.class);
         MacAddress macAddress = null;
         if (mac != null) {
