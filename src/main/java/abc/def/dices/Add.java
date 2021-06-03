@@ -38,8 +38,7 @@ public class Add extends GPNode
         final GPData input,
         final ADFStack stack,
         final GPIndividual individual,
-        final Problem problem)
-        {
+        final Problem problem) throws Exception {
         double result;
         DoubleData rd = ((DoubleData)(input));
 

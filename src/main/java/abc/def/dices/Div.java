@@ -51,8 +51,7 @@ public class Div extends GPNode
                      final GPData input,
                      final ADFStack stack,
                      final GPIndividual individual,
-                     final Problem problem)
-    {
+                     final Problem problem) throws Exception {
         double result;
         DoubleData rd = ((DoubleData)(input));
 
@@ -63,7 +62,7 @@ public class Div extends GPNode
         if (rd.x !=0) {
             rd.x = result / rd.x;
         }else {
-            rd.x=result/1;
+            throw new Exception("divide 0");
         }
     }
 }

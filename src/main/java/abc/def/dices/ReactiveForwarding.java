@@ -606,6 +606,7 @@ public class ReactiveForwarding {
 
                 linkWeighter = dynamicAdaptiveControlTask.getLinkWeights(linkService, solutionTree, temCongestionProblem);
 
+
                 Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(),
                         pkt.receivedFrom().deviceId(),
                         dst.location().deviceId(),

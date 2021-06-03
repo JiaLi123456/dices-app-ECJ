@@ -101,8 +101,7 @@ public class ADFArgument extends GPNode
         final GPData input,
         final ADFStack stack,
         final GPIndividual individual,
-        final Problem problem)
-        {
+        final Problem problem) throws Exception {
         // get the current context
         ADFContext c = stack.top(0);
         if (c==null) // uh oh

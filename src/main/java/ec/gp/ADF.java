@@ -249,8 +249,7 @@ public class ADF extends GPNode
         final GPData input,
         final ADFStack stack,
         final GPIndividual individual,
-        final Problem problem)
-        {
+        final Problem problem) throws Exception {
         // get a context and prepare it
         ADFContext c = stack.get();
         c.prepareADF(this, (GPProblem) problem);

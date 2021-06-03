@@ -41,15 +41,17 @@ public class SearchRunner {
     private  boolean flag;
     private  List<String>indsString;
     private Map<SrcDstPair,Path>solutionPath=null;
+    private int GPRound;
 
 
-    public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil,boolean firstOrNot) {
+    public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil,boolean firstOrNot, int GPRound) {
         this.topologyService = topologyService;
         this.linkService = linkService;
         this.hostService = hostService;
         this.monitorUtil = monitorUtil;
         this.flag=firstOrNot;
         this.indsString=new ArrayList<>();
+        this.GPRound=GPRound;
 
     }
 
@@ -147,7 +149,6 @@ public class SearchRunner {
         long time4 = System.currentTimeMillis();
         System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
         ///////////////////////////////////////////////////////////////////
-        ///////////////////////////////////////////////////////////////////
 
 
         ArrayList<Individual> inds =MultiObjectiveFitness.getSortedParetoFront(state.population.subpops.get(0).individuals);
@@ -156,7 +157,7 @@ public class SearchRunner {
                 FileWriter fw = new FileWriter(Config.ConfigFile, true);
                 List<String> indString =((CongestionProblem) evaluatedState.evaluator.p_problem).getIndString();
                 for (String s:indString){
-                    fw.append(s+"\r\n");
+                    fw.append(GPRound+"\t"+s+"\r\n");
                 }
                 // fw.write("////////////////////////////////////"+"\r\n");
                 fw.append("////////////////////////////////////" + "\r\n");
@@ -165,10 +166,7 @@ public class SearchRunner {
 //                }
 //                fw.append("////////////////////////////////////" + "\r\n");
                 fw.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+
         long time5 = System.currentTimeMillis();
         System.out.println("time5: "+(time5-time4)+", "+getCurrentTime());
             //Individual[] inds = evaluatedState.population.subpops.get(0).species.fitness.;
@@ -215,6 +213,9 @@ public class SearchRunner {
                // System.out.println("Search time (ms): " + computingTime + "， one search finished.");
             }
             else {
+
+                fw.append("knee solution: "+"\t"+((GPIndividual)solutionTree).toGPString()+"\t"+solutionTree.fitness.fitnessToString()+"\r\n");
+                fw.flush();
                 solution = solutionTree;
                // System.out.println(((GPIndividual) solutionTree).toGPString());
                // System.out.println(solutionTree.fitness.fitnessToString());
@@ -226,9 +227,14 @@ public class SearchRunner {
                 congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
                 //System.out.println("congestion problem: "+congestionProblem);
                 List<SrcDstPair> srcDstPairs = congestionProblem.getSrcDstPair();
-                Map<SrcDstPair, Path> newMap = congestionProblem.simLink(evaluatedState, solutionTree, 0);
-                solutionPath=new HashMap<>(newMap);
 
+                Map<SrcDstPair, Path> newMap = congestionProblem.simLink(evaluatedState, solutionTree, 0);
+                if (newMap!=null)
+                    solutionPath=new HashMap<>(newMap);
+                else {
+                    System.out.println(((GPIndividual) solutionTree).toGPString());
+                    return;
+                }
                 for (SrcDstPair pair : srcDstPairs) {
                     solutions.put(pair, newMap.get(pair).links());
                 }
@@ -264,7 +270,10 @@ public class SearchRunner {
             }
         long time6 = System.currentTimeMillis();
         System.out.println("time6: "+(time6-time5)+", "+getCurrentTime());
-
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
 //        } catch (IOException e) {
 //            e.printStackTrace();

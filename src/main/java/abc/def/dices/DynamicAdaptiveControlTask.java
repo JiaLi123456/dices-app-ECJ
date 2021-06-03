@@ -51,6 +51,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     private int flowPriority;
     private boolean isCongested;
     private MonitorUtil monitorUtil;
+    private  int GPRound;
 
     private Individual solutionTree=null;
     private TempLinkWeight linkWeights;
@@ -69,6 +70,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         monitorUtil = new MonitorUtil();
 
         nextMonitoringCnt = 0;
+        GPRound=0;
 
     }
 
@@ -142,10 +144,14 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         long currentMinute = totalMinutes % 60;
         return (currentMinute+":"+currentSecond);
     }
+    public int getGPRound(){
+        return GPRound;
+    }
     private void avoidCongestionBySearch() {
-        runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,firstOrNot);
+        GPRound++;
+        runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,firstOrNot,GPRound);
         runner.search();
-        System.out.println("time7: "+getCurrentTime());
+        //System.out.println("time7: "+getCurrentTime());
         log.info("avoidCongestionBySearch");
         //ready to change or delete: whether the flow entry is updated automatically based on the weight?
         resolveCongestion(runner);
@@ -155,7 +161,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         oldRunner=runner;
         if (runner.isSolvable()){ tempCongetsionProblem=runner.getCongestionProblem();}
         if (runner.isSolvable()){solutionPath=runner.getSolutionPath();}
-        System.out.println("time8: "+getCurrentTime());
+        System.out.println("time7: "+getCurrentTime());
     }
     public Individual getSolutionTree(){
         return solutionTree;
@@ -169,6 +175,8 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             return DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         }
         Map<Link,Integer> linkWeight=runner.getWeightUsingSolutionTree(solutionTree, link, tempCongetsionProblem);
+        if (linkWeight==null)
+            return DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         for (Link l:linkService.getLinks()){
             int weight=linkWeight.get(l);
             if ( weight > Config.LARGE_NUM) {

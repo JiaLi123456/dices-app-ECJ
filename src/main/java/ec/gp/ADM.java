@@ -32,8 +32,7 @@ public class ADM extends ADF
         final GPData input,
         final ADFStack stack,
         final GPIndividual individual,
-        final Problem problem)
-        {
+        final Problem problem) throws Exception {
         // prepare a context
         ADFContext c = stack.push(stack.get());
         c.prepareADM(this);

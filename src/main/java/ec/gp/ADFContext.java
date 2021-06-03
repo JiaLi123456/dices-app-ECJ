@@ -83,8 +83,7 @@ public class ADFContext implements Prototype
         final ADFStack stack,
         final GPIndividual individual,
         final Problem problem,
-        final int argument)
-        {
+        final int argument) throws Exception {
         // do I have that many arguments?
         if (argument >= adf.children.length || argument < 0)  // uh oh 
             {
@@ -105,13 +104,12 @@ public class ADFContext implements Prototype
                 state.output.fatal("Substack prematurely empty for "  + adf.errorInfo());
 
             // Call the GPNode
-            adf.children[argument].eval(state,thread,input,stack,individual,problem);
+            adf.children[argument].eval(state,thread,input,stack,individual,problem);}
             
             // restore my context
             if (stack.moveFromSubstack(1)!=1)
                 state.output.fatal("Stack prematurely empty for " + adf.errorInfo());
             }
-        }
 
     
     /** Increases arguments to accommodate space if necessary.
