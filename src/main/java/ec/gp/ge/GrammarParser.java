@@ -208,6 +208,9 @@ public class GrammarParser implements Prototype
                 else
                     {
                     if (!(gpfs.nodesByName.containsKey(token)))
+                        //(gpfs.nodesByName.keys().nextElement().toString());
+                        for (Object a:gpfs.nodesByName.keySet())
+                            System.out.println(a);
                         state.output.fatal("GPNode " + token 
                             + " is not defined in the function set.");
                     grammarfuncnode = new GrammarFunctionNode(gpfs, token);
