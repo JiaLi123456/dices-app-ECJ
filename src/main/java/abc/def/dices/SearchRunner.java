@@ -38,19 +38,21 @@ public class SearchRunner {
     private EvolutionState state;
     private Individual solution;
     private Map<Link,Integer> newWeight;
-    private  boolean flag;
+    private  boolean flag=true;
     private  List<String>indsString;
+    //private List<String>paretoString;
     private Map<SrcDstPair,Path>solutionPath=null;
     private int GPRound;
 
 
-    public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil,boolean firstOrNot, int GPRound) {
+    public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil, int GPRound,boolean dflag) {
         this.topologyService = topologyService;
         this.linkService = linkService;
         this.hostService = hostService;
         this.monitorUtil = monitorUtil;
-        this.flag=firstOrNot;
+        this.flag=dflag;
         this.indsString=new ArrayList<>();
+        //this.paretoString=new ArrayList<>();
         this.GPRound=GPRound;
 
     }
@@ -61,8 +63,12 @@ public class SearchRunner {
         long initTime = System.currentTimeMillis();
         log.warn(String.valueOf(initTime));
         ParameterDatabase child = new ParameterDatabase();
+        //////////////////////
+       // flag=true;
+        //////////////////////
         if (!flag) {
-            log.info("not the first time");
+            log.info("start from file");
+            System.out.println("start from file");
             File parameterFile = new File("./parameters.params");
             ParameterDatabase dbase = null;
             try {
@@ -81,8 +87,8 @@ public class SearchRunner {
 
             child.addParent(dbase);
         }else {
-            log.info("the first time！");
-            flag=false;
+            log.info("start from random");
+            System.out.println("start from random");
             try {
                 File infile = new File("./start.in");
                 infile.createNewFile();
@@ -122,56 +128,84 @@ public class SearchRunner {
             state = evaluatedState;
         long time2 = System.currentTimeMillis();
         System.out.println("time2： "+(time2-time1)+", "+getCurrentTime());
-           // ((CongestionProblem)evaluatedState.evaluator.p_problem).setFw(fw);
             evaluatedState.startFresh(this);
             int result = EvolutionState.R_NOTDONE;
-           // long oldTime=System.currentTimeMillis();
+            //////////////////////////////////////////////
+       // String filename=String.valueOf(time1);
+
             while (result == EvolutionState.R_NOTDONE) {
-                result = evaluatedState.evolve();
-               // long newTime=System.currentTimeMillis();
-                //System.out.println(result+": "+(newTime-oldTime));
-               // oldTime=newTime;
-            }
+                //result = evaluatedState.evolve();
+                ArrayList<Individual> ti=evaluatedState.population.subpops.get(0).individuals;
+                LinkedHashSet<Individual> hashSet = new LinkedHashSet<>(ti);
+                boolean tflag=false;
+                if (hashSet.size()!=ti.size())
+                    tflag=true;
+
+                if (tflag==true) {
+
+                    ArrayList<Individual> tii=new ArrayList<>();
+                    int idSize=ti.size();
+                    int index=0;
+                    while ( index<idSize){
+                        Individual i = evaluatedState.population.subpops.get(0).individuals.get(index);
+                        if (tii.contains(i)){
+                            int count1=0;
+                            while ((count1<Config.duplicateRetry)){
+                                evaluatedState.population.subpops.get(0).individuals.set(index,evaluatedState.population.subpops.get(0).species.newIndividual(evaluatedState,0));
+                                count1++;
+                            }
+
+                        }
+                        index++;
+                        tii.add(i);
+                    }
+                   // System.out.println(count1);
+                }
+                result=evaluatedState.evolve();
+               // System.out.println(".........................");
+
+               }
+            //////////////////////////////////////////////
         long time3 = System.currentTimeMillis();
         System.out.println("time3: "+(time3-time2)+", "+getCurrentTime());
-        ////////////////////////////////////////////
-        try {
-            //write the last generation to
-            PrintWriter writer = new PrintWriter("./start.in");
-            evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState,writer);
-//            System.out.println(evaluatedState.population.subpops.get(0).individuals.size());
-//            System.out.println(writer.toString());
-            writer.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-           // System.out.println(e.toString());
-        }
-        long time4 = System.currentTimeMillis();
-        System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
-        ///////////////////////////////////////////////////////////////////
+
+        //System.out.println(((CongestionProblem)evaluatedState.evaluator.p_problem).getIndividualResults().size());
+        //ArrayList<Individual>tempinds=
+//        int i=0;
+//        ArrayList<Individual>tempinds2=new ArrayList<>();
+//        for (Individual id : tempinds){
+//            MultiObjectiveFitness f = ((MultiObjectiveFitness)id.fitness);
+//            double[] fitness=f.getObjectives();
+//            if ((fitness[0]!=Config.LARGE_NUM)&&(fitness[1]!=Config.LARGE_NUM) &&(fitness[2]!=Config.LARGE_NUM))
+//                tempinds2.add(id);
+//        }
+//            //System.out.println(tempinds2.size());
+            ArrayList<Individual> inds = MultiObjectiveFitness.getSortedParetoFront(state.population.subpops.get(0).individuals);
 
 
-        ArrayList<Individual> inds =MultiObjectiveFitness.getSortedParetoFront(state.population.subpops.get(0).individuals);
+        //System.out.println(inds);
+        //
+//        for (Individual temp:inds)
+//            System.out.println(((GPIndividual)temp).toGPString()+ " : "+temp.fitness.fitnessToString());
         if (Config.collectFitness) {
             try {
                 FileWriter fw = new FileWriter(Config.ConfigFile, true);
                 List<String> indString =((CongestionProblem) evaluatedState.evaluator.p_problem).getIndString();
+                //List<String> paretoString=((CongestionProblem)evaluatedState.evaluator.p_problem).getParetoString();
                 for (String s:indString){
                     fw.append(GPRound+"\t"+s+"\r\n");
                 }
-                // fw.write("////////////////////////////////////"+"\r\n");
                 fw.append("////////////////////////////////////" + "\r\n");
-//                for (Individual id : inds) {
-//                    fw.append(id.fitness.fitnessToString() + "\r\n");
-//                }
-//                fw.append("////////////////////////////////////" + "\r\n");
                 fw.flush();
 
-        long time5 = System.currentTimeMillis();
-        System.out.println("time5: "+(time5-time4)+", "+getCurrentTime());
-            //Individual[] inds = evaluatedState.population.subpops.get(0).species.fitness.;
-       // System.out.println(inds);
-       // System.out.println(inds.toString());
+//                File file1 = new File("./outputIndividualFile1");
+//                FileWriter fw1 = new FileWriter(file1,true);
+//                for (String  s1: paretoString){
+//                    fw1.append(GPRound+"\t"+s1+"\r\n");
+//                }
+//                fw1.append("////////////////////////////////////" + "\r\n");
+//                fw1.flush();
+
 
             log.info("number of pareto fronts is: "+ inds.size());
 
@@ -179,40 +213,32 @@ public class SearchRunner {
 
             if (inds.size()<1){
                 log.error("no answers yet as there are no pareto fronts");
-                //inds=evaluatedState.population.subpops.get(0).individuals;
                 return;
             }
 
-//                int number=0;
-//                for (Individual ind : inds){
-//                    log.info("inds|||"+number+":"+((GPIndividual)ind).toGPString());
-//                    number=number+1;
-//                }
-
-            ///////////////////////////////////////
-            /////////////////////////////////////////
-//        try {
-//            writeFitness(inds);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-        /////////////////////////////////////////
-//        File timeFile=new File("./timeFile");
-//        try {
-//            FileWriter fw=new FileWriter(timeFile);
-
             solutionTree=getKneeSolution(inds);
            // System.out.println(solutionTree.fitness.fitnessToString());
-            if (solutionTree==null){
+            if (solutionTree==null) {
+                flag = true;
+
                 long computingTime = System.currentTimeMillis() - initTime;
                 log.error("no valid solution");
-                log.info("Search time (ms): " + computingTime+"， one search finished.");
-//
-//                fw.append(computingTime+"\r\n");
-//                fw.flush();
-               // System.out.println("Search time (ms): " + computingTime + "， one search finished.");
+                log.info("Search time (ms): " + computingTime + "， one search finished.");
+
             }
             else {
+                //System.out.println(((GPIndividual)solutionTree).toGPString());
+                flag=false;
+
+                try {
+                    //write the last generation to
+                    PrintWriter writer = new PrintWriter("./start.in");
+                    evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState,writer);
+                    writer.close();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+
 
                 fw.append("knee solution: "+"\t"+((GPIndividual)solutionTree).toGPString()+"\t"+solutionTree.fitness.fitnessToString()+"\r\n");
                 fw.flush();
@@ -225,7 +251,6 @@ public class SearchRunner {
                 //////////////////////////////////////////////
 
                 congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
-                //System.out.println("congestion problem: "+congestionProblem);
                 List<SrcDstPair> srcDstPairs = congestionProblem.getSrcDstPair();
 
                 Map<SrcDstPair, Path> newMap = congestionProblem.simLink(evaluatedState, solutionTree, 0);
@@ -242,13 +267,6 @@ public class SearchRunner {
                 long computingTime = System.currentTimeMillis() - initTime;
 
                 log.info("Search time (ms): " + computingTime + "， one search finished.");
-//                fw.append(computingTime+"\r\n");
-//                fw.flush();
-                //System.out.println("Search time (ms): " + computingTime + "， one search finished.");
-
-
-                ////////////////////////////////////////////
-
 
                 for (SrcDstPair sd : oldPath.keySet()){
                     String oldPathString="";
@@ -267,19 +285,24 @@ public class SearchRunner {
                     log.info("newPath: "+sd.src.toString()+" : "+sd.dst.toString()+" : "+newPathString);
                 }
                 ////////////////////////////////////////////
+                //System.out.println("242"+flag);
             }
-        long time6 = System.currentTimeMillis();
-        System.out.println("time6: "+(time6-time5)+", "+getCurrentTime());
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+       // System.out.println(flag);
+        long time4 = System.currentTimeMillis();
+        System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
     }
 
+    public void setFlag(boolean value){
+        this.flag=value;
+    }
+    public boolean getFlag(){
+        return this.flag;
+    }
     private Map<SrcDstPair,List<Link>> getCurSDPath() {
         Set<FlowEntry> flowEntrySet = monitorUtil.getAllCurrentFlowEntries();
         Set<SrcDstPair> sdSet = monitorUtil.getAllSrcDstPairs(flowEntrySet);
@@ -310,6 +333,9 @@ public class SearchRunner {
     public List<String>getIndsString(){
         return indsString;
  }
+//    public List<String>getParetoString(){
+//        return paretoString;
+//    }
 
     public CongestionProblem getCongestionProblem(){return congestionProblem;}
 
@@ -341,7 +367,7 @@ public class SearchRunner {
         }
         List<Individual> validSolutions=new ArrayList<>(results);
 
-        boolean flagV=true;
+        //boolean flagV=true;
         for (Individual s : results) {
             MultiObjectiveFitness f = ((MultiObjectiveFitness)s.fitness);
             double[] fitness=f.getObjectives();

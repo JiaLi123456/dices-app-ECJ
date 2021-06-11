@@ -57,9 +57,11 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     private TempLinkWeight linkWeights;
     private SearchRunner runner;
     private SearchRunner oldRunner;
-    private boolean firstOrNot=true;
+    //private boolean firstOrNot=true;
+    private boolean lastSolutionExist=false;
     private CongestionProblem tempCongetsionProblem;
     private Map<SrcDstPair, Path>solutionPath=null;
+    private boolean runnerFlag;
 
 
     private int nextMonitoringCnt;
@@ -71,6 +73,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
 
         nextMonitoringCnt = 0;
         GPRound=0;
+        runnerFlag=true;
 
     }
 
@@ -149,7 +152,8 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     }
     private void avoidCongestionBySearch() {
         GPRound++;
-        runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,firstOrNot,GPRound);
+        runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,GPRound,runnerFlag);
+        runner.setFlag(runnerFlag);
         runner.search();
         //System.out.println("time7: "+getCurrentTime());
         log.info("avoidCongestionBySearch");
@@ -157,11 +161,11 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         resolveCongestion(runner);
         //adjustLinkWeight(runner);
         if (runner.isSolvable()){ solutionTree=runner.getSolution();}
-        firstOrNot=false;
         oldRunner=runner;
         if (runner.isSolvable()){ tempCongetsionProblem=runner.getCongestionProblem();}
         if (runner.isSolvable()){solutionPath=runner.getSolutionPath();}
-        System.out.println("time7: "+getCurrentTime());
+        //this.runnerFlag=false;
+        this.runnerFlag=runner.getFlag();
     }
     public Individual getSolutionTree(){
         return solutionTree;
@@ -189,9 +193,10 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     }
 
     public Path getPath(SrcDstPair sd){
-        Path path = null;
-
-        return path;
+        if (solutionPath==null)
+            return null;
+        else
+            return solutionPath.get(sd);
     }
     private void resolveCongestion(SearchRunner runner) {
 
@@ -204,10 +209,10 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         for (SrcDstPair sd : curSDLinkPathMap.keySet()) {
             List<Link> oLinkPath = curSDLinkPathMap.get(sd);
             List<Link> sLinkPath = solSDLinkPathMap.get(sd);
-            if (Config.test) {
+           // if (Config.test) {
                 log.info(String.valueOf(sLinkPath.size()));
                 log.info(String.valueOf(oLinkPath.size()));
-            }
+           // }
             List<Link> lcsLinkPath = runner.findLCS(oLinkPath, sLinkPath);
             addFlowEntry(sd, sLinkPath, lcsLinkPath);
 

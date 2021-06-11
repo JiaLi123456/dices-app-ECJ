@@ -54,9 +54,12 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
     public double currentY;
     public double currentZ;
     private List<String> indsString;
-    private boolean timeRecording=false;
+   // private List<String> paretoString;
     private FileWriter fw;
-    private Individual tempIndividual;
+
+    private int lastGeneration=0;
+    private ArrayList<Individual> individualInOneGeneration;
+    private ArrayList<Individual> individualResults;
 
     //public double currentW=Config.UTILIZATION_THRESHOLD;
 
@@ -81,14 +84,11 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         this.newWeight=new HashMap<>();
         this.packetLossRateMap=new HashMap<>();
         this.indsString=runner.getIndsString();
+       // this.paretoString=runner.getParetoString();
+        this.individualInOneGeneration=new ArrayList<>();
+        //this.individualResults=new ArrayList<>();
         super.setup(state, base,runner);
         /////////////////////////////
-        File file=new File("./timeRecording");
-        try {
-            fw=new FileWriter(file);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         setCurSDPath();
         initSimLinkThroughputMap();
         updateSDTxBitsMap();
@@ -198,87 +198,85 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
     //3 fitnesses
     public void evaluate(final EvolutionState state,
-                         final Individual ind,
+                         Individual ind,
                          final int subpopulation,
                          final int threadnum) {
-        long time0=System.currentTimeMillis();
+        //System.out.println(((GPIndividual)ind).toGPString());
+        MultiObjectiveFitness f = ((MultiObjectiveFitness) ind.fitness);
 
-        MultiObjectiveFitness f = ((MultiObjectiveFitness)ind.fitness);
 
-        if (ind.evaluated==false) {
+        if ((ind.evaluated == false) || (state.generation == 0)) {
 
             ind.evaluated = true;
-            long time1=System.currentTimeMillis();
-                Map<SrcDstPair, Path> newSolution = simLink(state, ind, threadnum);
-                if (newSolution==null){
-                    double[] fn = new double[3];
-                    fn[0] = Config.LARGE_NUM;
-                    fn[1] = Config.LARGE_NUM;
-                    fn[2] = Config.LARGE_NUM;
-                    if (Config.test) {
-                        log.info("fitness : {}, {}, {}", Config.LARGE_NUM, Config.LARGE_NUM, Config.LARGE_NUM);
-                    }
-                    if (Config.collectFitness) {
-                        indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) tempIndividual).toGPString());
-                    }
-                    f.setObjectives(state,fn);
-                    return;
+            Map<SrcDstPair, Path> newSolution = simLink(state, ind, threadnum);
+            if (newSolution == null) {
+                double[] fn = new double[3];
+                fn[0] = Config.LARGE_NUM;
+                fn[1] = Config.LARGE_NUM;
+                fn[2] = Config.LARGE_NUM;
+                if (Config.test) {
+                    log.info("fitness : {}, {}, {}", Config.LARGE_NUM, Config.LARGE_NUM, Config.LARGE_NUM);
                 }
-                long time2 = System.currentTimeMillis();
-                if (timeRecording) {
-                    try {
-                        fw.write("SimLink" + "\t" + (int) (time2 - time1) + "\r\n");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                if (Config.collectFitness) {
+                    indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
                 }
+                f.setObjectives(state, fn);
+                return;
+            }
 
-                //fitness 1
-                double maxEstimateUtilization = estimateMaxLinkUtilization();
+            //fitness 1
+            double maxEstimateUtilization = estimateMaxLinkUtilization();
 
-                //fitness 2
-                long costByDiff = calculateDiffFromOrig(newSolution);
+            //fitness 2
+            long costByDiff;
+            if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD){
+                costByDiff = Config.LARGE_NUM;
+            }else {
+                costByDiff = calculateDiffFromOrig(newSolution);
                 if (costByDiff == 0) {
                     costByDiff = Config.LARGE_NUM;
                 }
+            }
 
-                //fitness 3
-                long totalDelay = sumDelay(newSolution);
-                if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD) {
-                    totalDelay = Config.LARGE_NUM;
-                }
-                double[] fn = new double[3];
-                fn[0] = maxEstimateUtilization;
-                fn[1] = costByDiff;
-                fn[2] = totalDelay;
+            //fitness 3
+            long totalDelay = sumDelay(newSolution);
+            if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD) {
+                totalDelay = Config.LARGE_NUM;
+            }
+            double[] fn = new double[3];
+            fn[0] = maxEstimateUtilization;
+            fn[1] = costByDiff;
+            fn[2] = totalDelay;
 
-                if (Config.test) {
-                    log.info("fitness : {}, {}, {}", maxEstimateUtilization, costByDiff, totalDelay);
-                }
-                //log.info("fitness : {}, {}",maxEstimateUtilization,costByDiff);
-                if (Config.collectFitness) {
-                    indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) tempIndividual).toGPString());
-                }
-                f.setObjectives(state, fn);
-        }
+            if (Config.test) {
+                log.info("fitness : {}, {}, {}", maxEstimateUtilization, costByDiff, totalDelay);
+            }
+            if (Config.collectFitness) {
+                indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
+            }
+            f.setObjectives(state, fn);
+          }
+
         else {
             if (Config.test) {
                 log.info("already evaluated, do nothing");
             }
-        }
-        long time3=System.currentTimeMillis();
-        if (timeRecording){
-            try {
-                fw.write("Evaluate"+"\t"+(int) (time3-time0)+"\r\n");
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (Config.collectFitness) {
+                indsString.add(state.generation +"\t"  +"\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
             }
         }
     }
 
+
+//    public ArrayList<Individual>getIndividualResults(){
+//        return individualResults;
+//    }
     public List<String> getIndString(){
         return indsString;
 }
+//    public List<String> getParetoString(){
+//        return paretoString;
+//    }
     //using the resulting tree of GP to calculate the new links
 
     public Map<SrcDstPair, Path> simLink(final EvolutionState state,
@@ -287,7 +285,6 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         weightAboveZero=true;
         TempLinkWeight tempWeight=new TempLinkWeight();
         DoubleData input = (DoubleData)(this.input);
-        tempIndividual=ind;
 
         for (Link l0:linkService.getLinks()){
             currentSimLinkThroughputMap.put(l0, 0L);
