@@ -57,6 +57,9 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
     private boolean timeRecording=false;
     private FileWriter fw;
     private Individual tempIndividual;
+    private List<Individual> individualsRecorded;
+    private int lastGeneration=0;
+    public static CongestionProblem congestionProblem;
 
     //public double currentW=Config.UTILIZATION_THRESHOLD;
 
@@ -64,7 +67,8 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                       final Parameter base, SearchRunner runner)
     {
         this.runner=runner;
-
+        congestionProblem=this;
+        System.out.println(this.toString());
         log.info("congestion problem setup!!");
 
         this.topologyService = runner.getTopologyService();
@@ -81,6 +85,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         this.newWeight=new HashMap<>();
         this.packetLossRateMap=new HashMap<>();
         this.indsString=runner.getIndsString();
+        this.individualsRecorded=new ArrayList<>();
         super.setup(state, base,runner);
         /////////////////////////////
         File file=new File("./timeRecording");
@@ -108,7 +113,9 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
 
 
-
+public static CongestionProblem getCongestionProblem(){
+        return congestionProblem;
+}
     //set the inital value of throughput to 0
     private void initCurrentLinkThroughputMap() {
         for (Link l : linkService.getLinks()) {
@@ -205,7 +212,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
         MultiObjectiveFitness f = ((MultiObjectiveFitness)ind.fitness);
 
-        if (ind.evaluated==false) {
+        if ((ind.evaluated==false)||(state.generation==0)) {
 
             ind.evaluated = true;
             long time1=System.currentTimeMillis();
@@ -219,7 +226,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                         log.info("fitness : {}, {}, {}", Config.LARGE_NUM, Config.LARGE_NUM, Config.LARGE_NUM);
                     }
                     if (Config.collectFitness) {
-                        indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) tempIndividual).toGPString());
+                        indsString.add(state.generation + "\t" +ind.hashCode()+"\t"+ fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
                     }
                     f.setObjectives(state,fn);
                     return;
@@ -257,13 +264,16 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 }
                 //log.info("fitness : {}, {}",maxEstimateUtilization,costByDiff);
                 if (Config.collectFitness) {
-                    indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) tempIndividual).toGPString());
+                    indsString.add(state.generation + "\t" +ind.hashCode()+"\t"+ fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
                 }
                 f.setObjectives(state, fn);
         }
         else {
+            if (Config.collectFitness) {
+                indsString.add(state.generation +"\t"  + ind.hashCode()+"\t"+"\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
+            }
             if (Config.test) {
-                log.info("already evaluated, do nothing");
+                log.info("already evaluated, do nothing: "+ind.hashCode()+" : "+((GPIndividual)ind).toGPString()+" : "+state.generation);
             }
         }
         long time3=System.currentTimeMillis();
@@ -274,20 +284,22 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 e.printStackTrace();
             }
         }
+        lastGeneration=state.generation;
     }
 
     public List<String> getIndString(){
         return indsString;
 }
+
     //using the resulting tree of GP to calculate the new links
 
     public Map<SrcDstPair, Path> simLink(final EvolutionState state,
                                          final Individual ind,
                                          final int threadnum) {
+
         weightAboveZero=true;
         TempLinkWeight tempWeight=new TempLinkWeight();
         DoubleData input = (DoubleData)(this.input);
-        tempIndividual=ind;
 
         for (Link l0:linkService.getLinks()){
             currentSimLinkThroughputMap.put(l0, 0L);
@@ -336,7 +348,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 }
                 double newLinkWeight=input.x;
                 newLinkWeight=(int)newLinkWeight;
-                if (newLinkWeight<0){
+                if (newLinkWeight<=0){
                     return null;
                 }
                 tempWeight.setLinkWeight(nL,(int)newLinkWeight);
@@ -402,6 +414,8 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         }
 
     public List<Link> findLCS(List<Link> x, List<Link> y) {
+        //System.out.println(x.size());
+        //System.out.println(y.size());
         int m = x.size(), n = y.size();
         int l[][] = new int[m+1][n+1];
         for (int i = 0; i <= m; i++) {

@@ -17,6 +17,7 @@ package abc.def.dices;
 
 import com.google.common.collect.ImmutableSet;
 import ec.Individual;
+import ec.gp.GPIndividual;
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
@@ -598,12 +599,14 @@ public class ReactiveForwarding {
             ////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////
             abc.def.dices.SrcDstPair sdPair= new abc.def.dices.SrcDstPair(macAddress,id.mac());
-            Path path=dynamicAdaptiveControlTask.getPath( sdPair);
+            Path path=dynamicAdaptiveControlTask.getPath(sdPair);
             if (path==null) {
                 solutionTree = dynamicAdaptiveControlTask.getSolutionTree();
+                if (solutionTree!=null)
+                log.info(((GPIndividual)solutionTree).toGPString());
                 CongestionProblem temCongestionProblem = dynamicAdaptiveControlTask.getTempCongestionProblem();
                 //System.out.println(macAddress+" : "+id.mac()+" || "+getCurrentTime());
-
+                //log.info("new flow from: "+macAddress.toString()+" to: "+dst.mac().toString());
                 linkWeighter = dynamicAdaptiveControlTask.getLinkWeights(linkService, solutionTree, temCongestionProblem);
 
 
@@ -631,6 +634,15 @@ public class ReactiveForwarding {
                 // Otherwise, pick a path that does not lead back to where we
                 // came from; if no such path, flood and bail.
                 path = pickForwardPathIfPossible(paths, pkt.receivedFrom().port());
+                if (path!=null) {
+                    String newPathString = "";
+                    for (Link nl : path.links()) {
+                        newPathString = newPathString + nl.src().toString() + "_" + nl.dst().toString() + " | ";
+                    }
+                    log.info("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
+                }
+                else
+                    log.info("null path "+macAddress.toString() + " : " + dst.mac().toString() );
             }
 
             ///////////////////////////////////////////////////////////////////////

@@ -33,14 +33,14 @@ stat.silent.front = true
 
 
 # generation number
-generations =				100
+generations =				50
 #tells us whether or not we should quit ECJ when it finds an ideal individual;
 #otherwise it will continue until it runs out of generations.
 quit-on-run-complete =			true
 pop = 					ec.Population
 pop.subpops =				1
 pop.subpop.0 = 				ec.Subpopulation
-pop.subpop.0.size =			100
+pop.subpop.0.size =			50
 
 pop.subpop.0.species.fitness = ec.multiobjective.MultiObjectiveFitness
 init = ec.gp.GPInitializer
@@ -61,11 +61,20 @@ pop.subpop.0.species.fitness.min               = 0
 finish = 	        		ec.simple.SimpleFinisher
 
 
-pop.subpop.0.species = ec.gp.GPSpecies
-pop.subpop.0.species.ind = ec.gp.GPIndividual
+#pop.subpop.0.species = ec.gp.GPSpecies
+#pop.subpop.0.species.ind = ec.gp.GPIndividual
 #a single tree per GPIndividual
-pop.subpop.0.species.ind.numtrees = 1
-pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.0.species.ind.numtrees = 1
+#pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+
+pop.subpop.0.species = ec.gp.ge.GESpecies
+pop.subpop.0.species.parser = ec.gp.ge.GrammarParser
+pop.subpop.0.species.ind = ec.gp.ge.GEIndividual
+pop.subpop.0.species.file.0 = foo.grammar
+
+pop.subpop.0.species.min-gene = -128
+pop.subpop.0.species.max-gene = 127
+pop.subpop.0.species.passes = 4
 
 #GPTreeConstraints
 gp.tc.size = 1
@@ -81,15 +90,20 @@ gp.tc.0.init.max-depth = 3
 gp.tc.0.init.growp = 0.5
 
 pop.subpop.0.species.ind.tree.0.tc = tc0
-#acommonBreedingPipelineusedingenetic programming
-pop.subpop.0.species.pipe = ec.breed.MultiBreedingPipeline
-pop.subpop.0.species.pipe.generate-max = false
-pop.subpop.0.species.pipe.num-sources = 3
+
 pop.subpop.0.species.pipe.source.0 = ec.gp.koza.CrossoverPipeline
 pop.subpop.0.species.pipe.source.0.prob = 0.9
+pop.subpop.0.species.pipe.source.0.duplicate-retries=10
 #requests the same number from its single source, then simply returns them (copying if necessary)
 pop.subpop.0.species.pipe.source.1 = ec.breed.ReproductionPipeline
 pop.subpop.0.species.pipe.source.1.prob = 0.1
+pop.subpop.0.species.pipe.source.1.duplicate-retries=10
+
+#acommonBreedingPipelineusedingenetic programming
+pop.subpop.0.species.pipe = ec.breed.MultiBreedingPipeline
+pop.subpop.0.species.pipe.duplicate-retries=10
+pop.subpop.0.species.pipe.generate-max = false
+pop.subpop.0.species.pipe.num-sources = 3
 
 # Reproduction
 breed.reproduce.source.0 = ec.select.TournamentSelection
@@ -110,6 +124,8 @@ gp.koza.xover.tries = 1
 
 pop.subpop.0.species.pipe.source.2 = ec.gp.koza.MutationPipeline
 pop.subpop.0.species.pipe.source.2.prob = 0.3
+pop.subpop.0.species.pipe.source.2.duplicate-retries = 10
+
 #ec.gp.koza.MutationPipeline performs standard subtree mutation: it requests a GPIndividual
 #from a single source; then a tree is selected; then a node is selected in that tree; and
 #finally the subtree rooted by that node is replaced in its entirety by a randomly-generated tree.
@@ -195,8 +211,9 @@ gp.fs.0.func.0 = abc.def.dices.W
 gp.fs.0.func.0.nc = nc0
 
 
-pop.subpop.0.duplicate-retries = 100
+pop.subpop.0.duplicate-retries = 10
 
-eval.problem = abc.def.dices.CongestionProblem
-eval.problem.data = abc.def.dices.DoubleData
+eval.problem = ec.gp.ge.GEProblem
+eval.problem.problem = abc.def.dices.CongestionProblem
+eval.problem.problem.data = abc.def.dices.DoubleData
 

@@ -182,16 +182,17 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             if ( weight > Config.LARGE_NUM) {
                 weight = (int)Config.LARGE_NUM;
             }
-            log.info("for updates link weight: new weights of "+l.src().toString()+" : "+l.dst().toString()+" is:"+weight);
+            //log.info("for updates link weight: new weights of "+l.src().toString()+" : "+l.dst().toString()+" is:"+weight);
             linkWeights.setLinkWeight(l, weight);
         }
         return linkWeights;
     }
 
     public Path getPath(SrcDstPair sd){
-        Path path = null;
-
-        return path;
+        if (solutionPath==null)
+            return null;
+        else
+            return solutionPath.get(sd);
     }
     private void resolveCongestion(SearchRunner runner) {
 
@@ -202,6 +203,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         Map<SrcDstPair, List<Link>> solSDLinkPathMap = runner.getSolutionLinkPath();
 
         for (SrcDstPair sd : curSDLinkPathMap.keySet()) {
+            System.out.println(sd.src+" : "+sd.dst);
             List<Link> oLinkPath = curSDLinkPathMap.get(sd);
             List<Link> sLinkPath = solSDLinkPathMap.get(sd);
             if (Config.test) {

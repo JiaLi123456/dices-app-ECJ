@@ -3,6 +3,7 @@ import ec.EvolutionState;
 import ec.Evolve;
 import ec.Individual;
 import ec.gp.GPIndividual;
+import ec.gp.GPProblem;
 import ec.simple.SimpleStatistics;
 import ec.simple.SimpleEvolutionState;
 import ec.util.DataPipe;
@@ -43,7 +44,6 @@ public class SearchRunner {
     private Map<SrcDstPair,Path>solutionPath=null;
     private int GPRound;
 
-
     public SearchRunner(TopologyService topologyService, LinkService linkService, HostService hostService, MonitorUtil monitorUtil,boolean firstOrNot, int GPRound) {
         this.topologyService = topologyService;
         this.linkService = linkService;
@@ -62,8 +62,20 @@ public class SearchRunner {
         log.warn(String.valueOf(initTime));
         ParameterDatabase child = new ParameterDatabase();
         if (!flag) {
-            log.info("not the first time");
-            File parameterFile = new File("./parameters.params");
+            File infile = new File("./start.in");
+            File parameterFile=null;
+            if (infile.exists()){
+                log.info("not the first time");
+                parameterFile = new File("./parameters.params");}
+            else {
+                try {
+                    infile.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                log.info("not the first time but have no valid solution yet");
+                parameterFile = new File("./parameters2.params");}
+
             ParameterDatabase dbase = null;
             try {
                 dbase = new ParameterDatabase(parameterFile,
@@ -85,6 +97,8 @@ public class SearchRunner {
             flag=false;
             try {
                 File infile = new File("./start.in");
+                if(infile.exists())
+                    infile.delete();
                 infile.createNewFile();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -134,28 +148,16 @@ public class SearchRunner {
             }
         long time3 = System.currentTimeMillis();
         System.out.println("time3: "+(time3-time2)+", "+getCurrentTime());
-        ////////////////////////////////////////////
-        try {
-            //write the last generation to
-            PrintWriter writer = new PrintWriter("./start.in");
-            evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState,writer);
-//            System.out.println(evaluatedState.population.subpops.get(0).individuals.size());
-//            System.out.println(writer.toString());
-            writer.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-           // System.out.println(e.toString());
-        }
-        long time4 = System.currentTimeMillis();
-        System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
-        ///////////////////////////////////////////////////////////////////
+        congestionProblem=CongestionProblem.getCongestionProblem();
+
 
 
         ArrayList<Individual> inds =MultiObjectiveFitness.getSortedParetoFront(state.population.subpops.get(0).individuals);
         if (Config.collectFitness) {
             try {
                 FileWriter fw = new FileWriter(Config.ConfigFile, true);
-                List<String> indString =((CongestionProblem) evaluatedState.evaluator.p_problem).getIndString();
+                System.out.println();
+                List<String> indString =congestionProblem.getIndString();
                 for (String s:indString){
                     fw.append(GPRound+"\t"+s+"\r\n");
                 }
@@ -167,8 +169,6 @@ public class SearchRunner {
 //                fw.append("////////////////////////////////////" + "\r\n");
                 fw.flush();
 
-        long time5 = System.currentTimeMillis();
-        System.out.println("time5: "+(time5-time4)+", "+getCurrentTime());
             //Individual[] inds = evaluatedState.population.subpops.get(0).species.fitness.;
        // System.out.println(inds);
        // System.out.println(inds.toString());
@@ -214,7 +214,20 @@ public class SearchRunner {
             }
             else {
 
-                fw.append("knee solution: "+"\t"+((GPIndividual)solutionTree).toGPString()+"\t"+solutionTree.fitness.fitnessToString()+"\r\n");
+                ////////////////////////////////////////////
+                try {
+                    //write the last generation to
+                    log.info("record the last generation.");
+                    PrintWriter writer = new PrintWriter("./start.in");
+                    evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState,writer);
+                    writer.flush();
+                    writer.close();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                ///////////////////////////////////////////////////////////////////
+
+                fw.append("knee solution: "+"\t"+solutionTree.toString()+"\t"+solutionTree.fitness.fitnessToString()+"\r\n");
                 fw.flush();
                 solution = solutionTree;
                // System.out.println(((GPIndividual) solutionTree).toGPString());
@@ -224,7 +237,7 @@ public class SearchRunner {
                 ///////////////////////////////////////////
                 //////////////////////////////////////////////
 
-                congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
+                //congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
                 //System.out.println("congestion problem: "+congestionProblem);
                 List<SrcDstPair> srcDstPairs = congestionProblem.getSrcDstPair();
 
@@ -232,7 +245,7 @@ public class SearchRunner {
                 if (newMap!=null)
                     solutionPath=new HashMap<>(newMap);
                 else {
-                    System.out.println(((GPIndividual) solutionTree).toGPString());
+                    //System.out.println(((GPIndividual) solutionTree).toGPString());
                     return;
                 }
                 for (SrcDstPair pair : srcDstPairs) {
@@ -268,8 +281,8 @@ public class SearchRunner {
                 }
                 ////////////////////////////////////////////
             }
-        long time6 = System.currentTimeMillis();
-        System.out.println("time6: "+(time6-time5)+", "+getCurrentTime());
+        long time4 = System.currentTimeMillis();
+        System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
             } catch (IOException e) {
                 e.printStackTrace();
             }
