@@ -1,4 +1,0 @@
-<start> ::= <op>
-<op> ::= (+ <bool> <bool>) | (- <bool> <bool>) | (* <bool> <bool>) | (/ <bool> <bool>) |
-<bool> ::= (* <par> MyERC)
-<par> ::=(X) | (Y) | (Z) | (W)

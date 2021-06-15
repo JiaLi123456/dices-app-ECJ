@@ -2,7 +2,10 @@ package abc.def.dices;
 import ec.EvolutionState;
 import ec.Evolve;
 import ec.Individual;
+import ec.Subpopulation;
 import ec.gp.GPIndividual;
+import ec.gp.koza.KozaFitness;
+import ec.gp.koza.KozaShortStatistics;
 import ec.simple.SimpleStatistics;
 import ec.simple.SimpleEvolutionState;
 import ec.util.DataPipe;
@@ -40,7 +43,6 @@ public class SearchRunner {
     private Map<Link,Integer> newWeight;
     private  boolean flag=true;
     private  List<String>indsString;
-    //private List<String>paretoString;
     private Map<SrcDstPair,Path>solutionPath=null;
     private int GPRound;
 
@@ -66,10 +68,9 @@ public class SearchRunner {
         //////////////////////
        // flag=true;
         //////////////////////
-        if (!flag) {
-            log.info("start from file");
-            System.out.println("start from file");
-            File parameterFile = new File("./parameters.params");
+        if (Config.randomSearchFlag==true){
+            //System.out.println("random search");
+            File parameterFile = new File("./parameters3.params");
             ParameterDatabase dbase = null;
             try {
                 dbase = new ParameterDatabase(parameterFile,
@@ -86,38 +87,108 @@ public class SearchRunner {
             }
 
             child.addParent(dbase);
+        }else if (Config.singleObjective){
+            if (!flag) {
+                log.info("start from file");
+                //System.out.println("half start from file");
+                File parameterFile = new File("./parameters5.params");
+                ParameterDatabase dbase = null;
+                try {
+                    dbase = new ParameterDatabase(parameterFile,
+                            new String[]{"-file", parameterFile.getCanonicalPath()});
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    ParameterDatabase copy = (ParameterDatabase) (DataPipe.copy(dbase));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                child.addParent(dbase);
+            } else {
+                log.info("start from random");
+               // System.out.println("start from random");
+                try {
+                    File infile = new File("./start.in");
+                    infile.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                File parameterFile = new File("./parameters4.params");
+                ParameterDatabase dbase = null;
+                try {
+                    dbase = new ParameterDatabase(parameterFile,
+                            new String[]{"-file", parameterFile.getCanonicalPath()});
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    ParameterDatabase copy = (ParameterDatabase) (DataPipe.copy(dbase));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+                child.addParent(dbase);
+            }
         }else {
-            log.info("start from random");
-            System.out.println("start from random");
-            try {
-                File infile = new File("./start.in");
-                infile.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (!flag) {
+                log.info("start from file");
+                // System.out.println("start from file");
+                File parameterFile = new File("./parameters.params");
+                ParameterDatabase dbase = null;
+                try {
+                    dbase = new ParameterDatabase(parameterFile,
+                            new String[]{"-file", parameterFile.getCanonicalPath()});
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    ParameterDatabase copy = (ParameterDatabase) (DataPipe.copy(dbase));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                child.addParent(dbase);
+            } else {
+                log.info("start from random");
+                // System.out.println("start from random");
+                try {
+                    File infile = new File("./start.in");
+                    infile.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                File parameterFile = new File("./parameters2.params");
+                ParameterDatabase dbase = null;
+                try {
+                    dbase = new ParameterDatabase(parameterFile,
+                            new String[]{"-file", parameterFile.getCanonicalPath()});
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    ParameterDatabase copy = (ParameterDatabase) (DataPipe.copy(dbase));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+                child.addParent(dbase);
             }
-            File parameterFile = new File("./parameters2.params");
-            ParameterDatabase dbase = null;
-            try {
-                dbase = new ParameterDatabase(parameterFile,
-                        new String[]{"-file", parameterFile.getCanonicalPath()});
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            try {
-                ParameterDatabase copy = (ParameterDatabase) (DataPipe.copy(dbase));
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-            child.addParent(dbase);
         }
-////////////////////////////////////////////////////
+
+        ////////////////////////////////////////////
         ///////////////////////////////////////////////
         ///////////////////////////////////////////////
         long time1 = System.currentTimeMillis();
 
-        System.out.println("time1： "+(time1-initTime)+", "+getCurrentTime());
+        //System.out.println("time1： "+(time1-initTime)+", "+getCurrentTime());
 
             Output out = Evolve.buildOutput();
 
@@ -127,15 +198,15 @@ public class SearchRunner {
 
             state = evaluatedState;
         long time2 = System.currentTimeMillis();
-        System.out.println("time2： "+(time2-time1)+", "+getCurrentTime());
+       // System.out.println("time2： "+(time2-time1)+", "+getCurrentTime());
             evaluatedState.startFresh(this);
             int result = EvolutionState.R_NOTDONE;
             //////////////////////////////////////////////
-       // String filename=String.valueOf(time1);
-
             while (result == EvolutionState.R_NOTDONE) {
-                //result = evaluatedState.evolve();
-                ArrayList<Individual> ti=evaluatedState.population.subpops.get(0).individuals;
+                /////////////////////////////////////////////////////////////
+                ////////////////////////////////////////////////////////////
+                //for duplicate replacement
+               /* ArrayList<Individual> ti=evaluatedState.population.subpops.get(0).individuals;
                 LinkedHashSet<Individual> hashSet = new LinkedHashSet<>(ti);
                 boolean tflag=false;
                 if (hashSet.size()!=ti.size())
@@ -159,93 +230,118 @@ public class SearchRunner {
                         index++;
                         tii.add(i);
                     }
-                   // System.out.println(count1);
-                }
+                }*/
+                /////////////////////////////////////////////////////////////
+              /*  ArrayList<Individual> t_inds=evaluatedState.population.subpops.get(0).individuals;
+                int index=0;
+                int t_size=t_inds.size();
+                while (index<t_size){
+                    Individual t_ind=evaluatedState.population.subpops.get(0).individuals.get(index);
+                    if (t_ind.size()<=4){
+                        int count1=0;
+                        while ((count1<Config.duplicateRetry)){
+                            evaluatedState.population.subpops.get(0).individuals.set(index,evaluatedState.population.subpops.get(0).species.newIndividual(evaluatedState,0));
+                            count1++;
+                        }
+
+                    }
+
+                }*/
+                ////////////////////////////////////////////////////////////
                 result=evaluatedState.evolve();
-               // System.out.println(".........................");
-
-               }
+            }
             //////////////////////////////////////////////
-        long time3 = System.currentTimeMillis();
-        System.out.println("time3: "+(time3-time2)+", "+getCurrentTime());
-
-        //System.out.println(((CongestionProblem)evaluatedState.evaluator.p_problem).getIndividualResults().size());
-        //ArrayList<Individual>tempinds=
-//        int i=0;
-//        ArrayList<Individual>tempinds2=new ArrayList<>();
-//        for (Individual id : tempinds){
-//            MultiObjectiveFitness f = ((MultiObjectiveFitness)id.fitness);
-//            double[] fitness=f.getObjectives();
-//            if ((fitness[0]!=Config.LARGE_NUM)&&(fitness[1]!=Config.LARGE_NUM) &&(fitness[2]!=Config.LARGE_NUM))
-//                tempinds2.add(id);
-//        }
-//            //System.out.println(tempinds2.size());
+        //long time3 = System.currentTimeMillis();
+        //System.out.println("time3: "+(time3-time2)+", "+getCurrentTime());
+        Individual solutionTree=null;
+            ArrayList<Individual>pops=new ArrayList<>();
+        if(!Config.singleObjective) {
             ArrayList<Individual> inds = MultiObjectiveFitness.getSortedParetoFront(state.population.subpops.get(0).individuals);
+            log.info("number of pareto fronts is: "+ inds.size());
 
+            if (inds.size()<1){
+                log.error("no answers yet as there are no pareto fronts");
+                return;
+            }
+            solutionTree=getKneeSolution(inds);
+        }else {
+            ArrayList<Individual> subpop0=evaluatedState.population.subpops.get(0).individuals;
 
-        //System.out.println(inds);
-        //
-//        for (Individual temp:inds)
-//            System.out.println(((GPIndividual)temp).toGPString()+ " : "+temp.fitness.fitnessToString());
+            for (Individual i1 : subpop0){
+                if (!pops.contains(i1)){
+                    pops.add(i1);
+                }
+            }
+            if (!flag) {
+                ArrayList<Individual> subpop1 = evaluatedState.population.subpops.get(1).individuals;
+                for (Individual i2 : subpop1) {
+                    if (!pops.contains(i2)) {
+                        pops.add(i2);
+                    }
+                }
+            }
+            double tempFitness=((KozaFitness)pops.get(0).fitness).standardizedFitness();
+            solutionTree=pops.get(0);
+            for (Individual id :pops){
+                if (((KozaFitness)(id.fitness)).standardizedFitness()<tempFitness) {
+                    tempFitness = ((KozaFitness)(id.fitness)).standardizedFitness();
+                    solutionTree=id;
+                }
+            }
+            if (((KozaFitness)(solutionTree.fitness)).standardizedFitness()>=2.44) {
+                solutionTree = null;
+            }
+        }
         if (Config.collectFitness) {
             try {
                 FileWriter fw = new FileWriter(Config.ConfigFile, true);
                 List<String> indString =((CongestionProblem) evaluatedState.evaluator.p_problem).getIndString();
-                //List<String> paretoString=((CongestionProblem)evaluatedState.evaluator.p_problem).getParetoString();
                 for (String s:indString){
                     fw.append(GPRound+"\t"+s+"\r\n");
                 }
                 fw.append("////////////////////////////////////" + "\r\n");
                 fw.flush();
 
-//                File file1 = new File("./outputIndividualFile1");
-//                FileWriter fw1 = new FileWriter(file1,true);
-//                for (String  s1: paretoString){
-//                    fw1.append(GPRound+"\t"+s1+"\r\n");
-//                }
-//                fw1.append("////////////////////////////////////" + "\r\n");
-//                fw1.flush();
-
-
-            log.info("number of pareto fronts is: "+ inds.size());
-
-            Individual solutionTree=null;
-
-            if (inds.size()<1){
-                log.error("no answers yet as there are no pareto fronts");
-                return;
-            }
-
-            solutionTree=getKneeSolution(inds);
-           // System.out.println(solutionTree.fitness.fitnessToString());
             if (solutionTree==null) {
-                flag = true;
-
                 long computingTime = System.currentTimeMillis() - initTime;
                 log.error("no valid solution");
                 log.info("Search time (ms): " + computingTime + "， one search finished.");
 
             }
             else {
-                //System.out.println(((GPIndividual)solutionTree).toGPString());
-                flag=false;
-
                 try {
                     //write the last generation to
                     PrintWriter writer = new PrintWriter("./start.in");
-                    evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState,writer);
+                    if (!Config.singleObjective) {
+                        evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState, writer);
+                    }else {
+                        while (pops.size()>5){
+                            int biggestFitnessIndex=0;
+                            int popsSize=pops.size();
+                            int popsIndex=0;
+                            while(popsIndex<popsSize){
+                                if (((KozaFitness)(pops.get(biggestFitnessIndex).fitness)).standardizedFitness()<((KozaFitness)(pops.get(popsIndex).fitness)).standardizedFitness()){
+                                    biggestFitnessIndex=popsIndex;
+                                }
+                                popsIndex++;
+                            }
+                            pops.remove(biggestFitnessIndex);
+                        }
+                        evaluatedState.population.subpops.get(0).individuals.clear();
+                        evaluatedState.population.subpops.get(0).individuals.addAll(pops);
+                        evaluatedState.population.subpops.get(0).printSubpopulation(evaluatedState, writer);
+                    }
                     writer.close();
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 }
-
-
-                fw.append("knee solution: "+"\t"+((GPIndividual)solutionTree).toGPString()+"\t"+solutionTree.fitness.fitnessToString()+"\r\n");
+                if (!Config.singleObjective) {
+                    fw.append("knee solution: " + "\t" + ((GPIndividual) solutionTree).toGPString() + "\t" + solutionTree.fitness.fitnessToString() + "\r\n");
+                }else {
+                    fw.append("solution: " + "\t" + ((GPIndividual) solutionTree).toGPString() + "\t" + (((KozaFitness)solutionTree.fitness)).standardizedFitness() + "\r\n");
+                }
                 fw.flush();
                 solution = solutionTree;
-               // System.out.println(((GPIndividual) solutionTree).toGPString());
-               // System.out.println(solutionTree.fitness.fitnessToString());
-               // solutionTree.printIndividualForHumans(state, 0);
                 ///////////////////////////////////////////
                 ///////////////////////////////////////////
                 //////////////////////////////////////////////
@@ -284,17 +380,13 @@ public class SearchRunner {
                     }
                     log.info("newPath: "+sd.src.toString()+" : "+sd.dst.toString()+" : "+newPathString);
                 }
-                ////////////////////////////////////////////
-                //System.out.println("242"+flag);
             }
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-       // System.out.println(flag);
         long time4 = System.currentTimeMillis();
-        System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
+       // System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
     }
 
     public void setFlag(boolean value){

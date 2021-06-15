@@ -190,7 +190,7 @@ public class MultiObjectiveFitness extends Fitness
         for (int i = 0; i < newObjectives.length; i++)
             {
             double _f = newObjectives[i];
-         //System.out.println("!!!!!!!!!!!!!"+_f);
+
             if (_f >= Double.POSITIVE_INFINITY || _f <= Double.NEGATIVE_INFINITY || Double.isNaN(_f))
                 {
                 state.output.warning("Bad objective #" + i + ": " + _f + ", setting to worst value for that objective.");

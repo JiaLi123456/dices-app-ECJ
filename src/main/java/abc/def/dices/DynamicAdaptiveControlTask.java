@@ -2,6 +2,7 @@ package abc.def.dices;
 
 import ec.Individual;
 import ec.gp.GPIndividual;
+import ec.multiobjective.MultiObjectiveFitness;
 import org.onlab.packet.MacAddress;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.net.*;
@@ -62,11 +63,12 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     private CongestionProblem tempCongetsionProblem;
     private Map<SrcDstPair, Path>solutionPath=null;
     private boolean runnerFlag;
-
+    private boolean firstSolution;
 
     private int nextMonitoringCnt;
 
     DynamicAdaptiveControlTask() {
+
         isExit = false;
         isCongested = false;
         monitorUtil = new MonitorUtil();
@@ -74,6 +76,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         nextMonitoringCnt = 0;
         GPRound=0;
         runnerFlag=true;
+        firstSolution=false;
 
     }
 
@@ -98,9 +101,24 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             }
 
             isCongested = monitorLinks();
+            long time1=System.currentTimeMillis();
             if (isCongested) {
                 nextMonitoringCnt = Config.NEXT_MONITORING_CNT;
                 avoidCongestionBySearch();
+                long time2=System.currentTimeMillis();
+                String fitness="";
+                if (runner.isSolvable()) {
+                    if (Config.singleObjective){
+                        fitness= String.valueOf(solutionTree.fitness.fitness());
+                    }else {
+                        double a = ((MultiObjectiveFitness) solutionTree.fitness).getObjectives()[0];
+                        double b = ((MultiObjectiveFitness) solutionTree.fitness).getObjectives()[1];
+                        double c = ((MultiObjectiveFitness) solutionTree.fitness).getObjectives()[2];
+                        fitness = "(" + a + ", " + b + ", " + c + ")";
+                    }
+                }else
+                    fitness="";
+                System.out.println(getGPRound()+"\t"+(time2-time1)+"\t"+fitness);
             }
             long computingTime = System.currentTimeMillis() - initTime;
             log.info("Control loop time (ms): " + computingTime);
@@ -153,6 +171,10 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     private void avoidCongestionBySearch() {
         GPRound++;
         runner = new SearchRunner(topologyService, linkService, hostService, monitorUtil,GPRound,runnerFlag);
+        if (firstSolution==false)
+            runnerFlag=true;
+        else
+            runnerFlag=false;
         runner.setFlag(runnerFlag);
         runner.search();
         //System.out.println("time7: "+getCurrentTime());
@@ -164,8 +186,11 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         oldRunner=runner;
         if (runner.isSolvable()){ tempCongetsionProblem=runner.getCongestionProblem();}
         if (runner.isSolvable()){solutionPath=runner.getSolutionPath();}
+        if (runner.isSolvable()){
+            firstSolution=true;
+        }
         //this.runnerFlag=false;
-        this.runnerFlag=runner.getFlag();
+        //this.runnerFlag=runner.getFlag();
     }
     public Individual getSolutionTree(){
         return solutionTree;
@@ -186,7 +211,7 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             if ( weight > Config.LARGE_NUM) {
                 weight = (int)Config.LARGE_NUM;
             }
-            //log.info("for updates link weight: new weights of "+l.src().toString()+" : "+l.dst().toString()+" is:"+weight);
+            log.info("for updates link weight: new weights of "+l.src().toString()+" : "+l.dst().toString()+" is:"+weight);
             linkWeights.setLinkWeight(l, weight);
         }
         return linkWeights;
@@ -207,7 +232,6 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         Map<SrcDstPair, List<Link>> solSDLinkPathMap = runner.getSolutionLinkPath();
 
         for (SrcDstPair sd : curSDLinkPathMap.keySet()) {
-            System.out.println(sd.src+" : "+sd.dst);
             List<Link> oLinkPath = curSDLinkPathMap.get(sd);
             List<Link> sLinkPath = solSDLinkPathMap.get(sd);
            // if (Config.test) {

@@ -11,7 +11,6 @@ import ec.util.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 
 /* 
  * MultiBreedingPipeline.java
@@ -57,7 +56,6 @@ public class MultiBreedingPipeline extends BreedingPipeline
 
     public int maxGeneratable;
     public boolean generateMax;
-    public HashSet set = new HashSet();
 
     public Parameter defaultBase()
         {
@@ -111,32 +109,6 @@ public class MultiBreedingPipeline extends BreedingPipeline
         return maxGeneratable; 
         }
 
-        public void prepareToProduce(
-                final EvolutionState state,
-                final int subpopulation,
-                final int thread)
-        {
-            set.clear();
-            ArrayList<Individual> inds = state.population.subpops.get(subpopulation).individuals;
-            for(int i = 0; i < inds.size(); i++)
-                set.add(inds.get(i));
-        }
-
-        int removeDuplicates(ArrayList<Individual> inds, int start, int num)
-        {
-            for(int i = start; i < start + num; i++)
-            {
-                if (set.contains(inds.get(i)))  // swap in from top
-                {
-                    inds.set(i, inds.get(start+num - 1));
-                    inds.set(start+num-1, null);
-                    num--;
-                    i--;  // try again
-                }
-            }
-            return num;
-        }
-
 
     public int produce(final int min,
         final int max,
@@ -150,36 +122,22 @@ public class MultiBreedingPipeline extends BreedingPipeline
 
         BreedingSource s = sources[BreedingSource.pickRandom(sources,state.random[thread].nextDouble())];
         int total;
-        int numDuplicateRetries=100;
-        int result=0;
-        int remainder = (generateMax ? max : min);
-        if (generateMax) {
-            if (maxGeneratable == 0)
+        
+        if (generateMax)
+            {
+            if (maxGeneratable==0)
                 maxGeneratable = maxChildProduction();
             int n = maxGeneratable;
             if (n < min) n = min;
             if (n > max) n = max;
-            for (int retry = 0; retry < numDuplicateRetries + 1; retry++) {
-                total = s.produce(n, n, subpopulation, inds, state, thread, misc);
-                int num = removeDuplicates(inds, n, n);
-                result=result+num;
+
+            total = s.produce(n,n,subpopulation,inds, state,thread, misc);
             }
-            if (result < remainder)  // never succeeded to build unique individuals, just make some non-unique ones
-                result += sources[0].produce(remainder - result,n,subpopulation,inds, state,thread, misc);
-
-        }
-
-        else {
-            for (int retry = 0; retry < numDuplicateRetries + 1; retry++) {
-                total = s.produce(min, max, subpopulation, inds, state, thread, misc);
-                int num=removeDuplicates(inds,min,max);
-                result=result+num;
+        else
+            {
+            total = s.produce(min,max,subpopulation,inds, state,thread, misc);
             }
-            if (result < remainder)  // never succeeded to build unique individuals, just make some non-unique ones
-                result += sources[0].produce(remainder - result,max,subpopulation,inds, state,thread, misc);
-
-        }
-
-        return result;
+            
+        return total;
         }
     }

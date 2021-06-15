@@ -23,5 +23,7 @@ public class Config {
     public static final boolean collectFitness=true;
     public static  final File ConfigFile=new File("./outputIndividualFile");
     public static final int duplicateRetry=100;
+    public static final boolean randomSearchFlag=false;
+    public static final boolean singleObjective=true;
 
 }

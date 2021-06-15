@@ -1,5 +1,6 @@
 package abc.def.dices;
 
+import ec.gp.koza.KozaFitness;
 import org.onlab.graph.Weight;
 import org.onlab.packet.MacAddress;
 import org.onosproject.net.*;
@@ -201,69 +202,110 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                          Individual ind,
                          final int subpopulation,
                          final int threadnum) {
-        //System.out.println(((GPIndividual)ind).toGPString());
-        MultiObjectiveFitness f = ((MultiObjectiveFitness) ind.fitness);
+        ///////////////////////////////////////////////////////////////////////
+        if (Config.singleObjective) {
+            KozaFitness f=(KozaFitness) ind.fitness;
+            if ((ind.evaluated == false) || (state.generation == 0)) {
+                ind.evaluated = true;
+                Map<SrcDstPair, Path> newSolution = simLink(state, ind, threadnum);
+                if (newSolution == null) {
 
+                    if (Config.test) {
+                        log.info("fitness : {}", 3);
+                    }
+                    if (Config.collectFitness) {
+                        indsString.add(state.generation + "\t" + 3 + "\t" + ((GPIndividual) ind).toGPString());
+                    }
+                    f.setStandardizedFitness(state,3);
+                    return;
+                }
+                double fitness=0;
 
-        if ((ind.evaluated == false) || (state.generation == 0)) {
+                double maxEstimateUtilization = estimateMaxLinkUtilization();
+                if (maxEstimateUtilization>Config.UTILIZATION_THRESHOLD){
+                    fitness=maxEstimateUtilization/(maxEstimateUtilization+1)+2;
+                }else{
+                    long costByDiff=calculateDiffFromOrig(newSolution);
+                    long totalDelay=sumDelay(newSolution);
+                    fitness=maxEstimateUtilization/(maxEstimateUtilization+1)+costByDiff/(1+costByDiff)+totalDelay/(totalDelay+1);
+                }
 
-            ind.evaluated = true;
-            Map<SrcDstPair, Path> newSolution = simLink(state, ind, threadnum);
-            if (newSolution == null) {
-                double[] fn = new double[3];
-                fn[0] = Config.LARGE_NUM;
-                fn[1] = Config.LARGE_NUM;
-                fn[2] = Config.LARGE_NUM;
                 if (Config.test) {
-                    log.info("fitness : {}, {}, {}", Config.LARGE_NUM, Config.LARGE_NUM, Config.LARGE_NUM);
+                    log.info("fitness : {}", fitness);
                 }
                 if (Config.collectFitness) {
-                    indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
+                    indsString.add(state.generation + "\t" + fitness+ "\t" + ((GPIndividual) ind).toGPString() + "\t" + ((KozaFitness)ind.fitness).standardizedFitness()+"\t"+ind.fitness.fitness());
+                }
+                f.setStandardizedFitness(state,fitness);
+            } else {
+                if (Config.test) {
+                    log.info("already evaluated, do nothing");
+                }
+                if (Config.collectFitness) {
+                    indsString.add(state.generation + "\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
+                }
+            }
+        } else {
+            ///////////////////////////////////////////////////////////////////////
+            MultiObjectiveFitness f = ((MultiObjectiveFitness) ind.fitness);
+            if ((ind.evaluated == false) || (state.generation == 0)) {
+
+                ind.evaluated = true;
+                Map<SrcDstPair, Path> newSolution = simLink(state, ind, threadnum);
+                if (newSolution == null) {
+                    double[] fn = new double[3];
+                    fn[0] = Config.LARGE_NUM;
+                    fn[1] = Config.LARGE_NUM;
+                    fn[2] = Config.LARGE_NUM;
+                    if (Config.test) {
+                        log.info("fitness : {}, {}, {}", Config.LARGE_NUM, Config.LARGE_NUM, Config.LARGE_NUM);
+                    }
+                    if (Config.collectFitness) {
+                        indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
+                    }
+                    f.setObjectives(state, fn);
+                    return;
+                }
+                //fitness 1
+                double maxEstimateUtilization = estimateMaxLinkUtilization();
+
+                //fitness 2
+                long costByDiff;
+                if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD) {
+                    costByDiff = Config.LARGE_NUM;
+                } else {
+                    costByDiff = calculateDiffFromOrig(newSolution);
+                    if (costByDiff == 0) {
+                        costByDiff = Config.LARGE_NUM;
+                    }
+                }
+
+                //fitness 3
+                long totalDelay = sumDelay(newSolution);
+                if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD) {
+                    totalDelay = Config.LARGE_NUM;
+                }
+                double[] fn = new double[3];
+                fn[0] = maxEstimateUtilization;
+                fn[1] = costByDiff;
+                fn[2] = totalDelay;
+
+                if (Config.test) {
+                    log.info("fitness : {}, {}, {}", maxEstimateUtilization, costByDiff, totalDelay);
+                }
+                if (Config.collectFitness) {
+                    indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString() + "\t" + ind.size());
                 }
                 f.setObjectives(state, fn);
-                return;
-            }
-
-            //fitness 1
-            double maxEstimateUtilization = estimateMaxLinkUtilization();
-
-            //fitness 2
-            long costByDiff;
-            if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD){
-                costByDiff = Config.LARGE_NUM;
-            }else {
-                costByDiff = calculateDiffFromOrig(newSolution);
-                if (costByDiff == 0) {
-                    costByDiff = Config.LARGE_NUM;
+            } else {
+                if (Config.test) {
+                    log.info("already evaluated, do nothing");
+                }
+                if (Config.collectFitness) {
+                    indsString.add(state.generation + "\t" + "\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
                 }
             }
-
-            //fitness 3
-            long totalDelay = sumDelay(newSolution);
-            if (maxEstimateUtilization > Config.UTILIZATION_THRESHOLD) {
-                totalDelay = Config.LARGE_NUM;
-            }
-            double[] fn = new double[3];
-            fn[0] = maxEstimateUtilization;
-            fn[1] = costByDiff;
-            fn[2] = totalDelay;
-
-            if (Config.test) {
-                log.info("fitness : {}, {}, {}", maxEstimateUtilization, costByDiff, totalDelay);
-            }
-            if (Config.collectFitness) {
-                indsString.add(state.generation + "\t" + fn[0] + "\t" + fn[1] + "\t" + fn[2] + "\t" + ((GPIndividual) ind).toGPString());
-            }
-            f.setObjectives(state, fn);
-          }
-
-        else {
-            if (Config.test) {
-                log.info("already evaluated, do nothing");
-            }
-            if (Config.collectFitness) {
-                indsString.add(state.generation +"\t"  +"\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
-            }
+            /////////////////////////////////////////////////////////////////////
         }
     }
 
@@ -287,7 +329,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         DoubleData input = (DoubleData)(this.input);
 
         for (Link l0:linkService.getLinks()){
-            currentSimLinkThroughputMap.put(l0, 0L);
+            currentSimLinkThroughputMap.put(l0, (long) 0.0001);
             long delay = monitorUtil.getDelay(l0);
             currentY=0;
             currentZ=(double)delay;
@@ -343,9 +385,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 log.info("sd-pair:" + sd + "; srcDev" + srcDevId + "; dstDev" + dstDevId +
                         "; host src:" + srcHost + "; host dst:" + dstHost + "; Path" + allPathSet.toArray()[0]);
             }
-
         }
-
         return sdAltPathListMap;
     }
 
