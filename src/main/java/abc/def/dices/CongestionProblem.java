@@ -227,16 +227,17 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 }else{
                     long costByDiff=calculateDiffFromOrig(newSolution);
                     long totalDelay=sumDelay(newSolution);
-                    fitness=maxEstimateUtilization/(maxEstimateUtilization+1)+costByDiff/(1+costByDiff)+totalDelay/(totalDelay+1);
+                    fitness=(maxEstimateUtilization/(maxEstimateUtilization+1))+(costByDiff/(1+costByDiff))+(totalDelay/(totalDelay+1));
                 }
 
                 if (Config.test) {
                     log.info("fitness : {}", fitness);
                 }
-                if (Config.collectFitness) {
-                    indsString.add(state.generation + "\t" + fitness+ "\t" + ((GPIndividual) ind).toGPString() + "\t" + ((KozaFitness)ind.fitness).standardizedFitness()+"\t"+ind.fitness.fitness());
-                }
+
                 f.setStandardizedFitness(state,fitness);
+                if (Config.collectFitness) {
+                    indsString.add(state.generation + "\t" + fitness+ "\t" + ((GPIndividual) ind).toGPString() + "\t" +maxEstimateUtilization);
+                }
             } else {
                 if (Config.test) {
                     log.info("already evaluated, do nothing");
@@ -302,7 +303,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                     log.info("already evaluated, do nothing");
                 }
                 if (Config.collectFitness) {
-                    indsString.add(state.generation + "\t" + "\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
+                    indsString.add(state.generation + "\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
                 }
             }
             /////////////////////////////////////////////////////////////////////
@@ -329,18 +330,21 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         DoubleData input = (DoubleData)(this.input);
 
         for (Link l0:linkService.getLinks()){
-            currentSimLinkThroughputMap.put(l0, (long) 0.0001);
+            currentSimLinkThroughputMap.put(l0, (long) 0);
             long delay = monitorUtil.getDelay(l0);
-            currentY=0;
+            currentY=0.01;
             currentZ=(double)delay;
+            currentY=currentY*100;
+            currentZ=currentZ*100;
             try{
                 ((GPIndividual) ind).trees[0].child.eval(state, threadnum, input, stack, ((GPIndividual) ind), this);}
                 catch (Exception e){
+                //System.out.println("divide by 0");
                 return null;
              }
             double newLinkWeight = input.x;
-            newLinkWeight=(int)newLinkWeight;
-            if (newLinkWeight<=0){
+            if ((int)newLinkWeight<=0){
+                //System.out.println("new link weight <0");
                 weightAboveZero=false;
                 return null;
             }
@@ -368,14 +372,16 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 long simThroughput=currentSimLinkThroughputMap.get(nL)+throughputPerSec;
                 double simUtilization=monitorUtil.calculateUtilization(nL, simThroughput);
                 currentY=simUtilization;
+                if (currentY<0.01)
+                    currentY=0.01;
+                currentY=currentY*100;
                 try{
                 ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);}
                 catch (Exception e){
                     return  null;
                 }
                 double newLinkWeight=input.x;
-                newLinkWeight=(int)newLinkWeight;
-                if (newLinkWeight<0){
+                if ((int)newLinkWeight<=0){
                     return null;
                 }
                 tempWeight.setLinkWeight(nL,(int)newLinkWeight);
@@ -494,18 +500,23 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
         for (Link l : linkService.getLinks()) {
             long delay = monitorUtil.getDelay(l);
             currentY = monitorUtil.monitorLinkUtilization(l);
+            if (currentY<0.01)
+                currentY=0.01;
+            currentY=100*currentY;
+
             currentZ = (double) delay;
+            currentZ=100*currentZ;
             try {
             ((GPIndividual) tree).trees[0].child.eval(state, threadnum, input, stack, ((GPIndividual) tree), this);}
+            //System.out.println("new coming: util "+currentY+"   "+l.src().toString()+" : "+l.dst().toString()+" : "+input.x);}
             catch (Exception e){
                 return null;
             }
             double newLinkWeight = input.x;
-            newLinkWeight = (int) newLinkWeight;
-            if (newLinkWeight <= 0) {
+            if ((int)newLinkWeight <= 0) {
                 return null;
             }
-            result.put(l, (int) newLinkWeight);
+            result.put(l, (int)newLinkWeight);
         }
         return  result;
     }

@@ -61,6 +61,7 @@ public class Div extends GPNode
         children[1].eval(state,thread,input,stack,individual,problem);
         if (rd.x !=0) {
             rd.x = result / rd.x;
+            //System.out.println(rd.x);
         }else {
             throw new Exception("divide 0");
         }

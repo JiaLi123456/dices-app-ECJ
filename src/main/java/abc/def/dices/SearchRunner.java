@@ -342,11 +342,13 @@ public class SearchRunner {
                 }
                 fw.flush();
                 solution = solutionTree;
+
                 ///////////////////////////////////////////
                 ///////////////////////////////////////////
                 //////////////////////////////////////////////
 
                 congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
+               // System.out.println("*  "+congestionProblem.toString());
                 List<SrcDstPair> srcDstPairs = congestionProblem.getSrcDstPair();
 
                 Map<SrcDstPair, Path> newMap = congestionProblem.simLink(evaluatedState, solutionTree, 0);
@@ -433,7 +435,8 @@ public class SearchRunner {
 
     public Map<Link,Integer> getWeightUsingSolutionTree(Individual tree,LinkService linkService,CongestionProblem congestionProblem){
         //System.out.println(((GPIndividual)tree).toGPString());
-        return congestionProblem.getIndividualResultWeight(
+        //System.out.println(congestionProblem.toString());
+        return ((CongestionProblem)congestionProblem).getIndividualResultWeight(
                 state,tree,0, linkService
         );
     }

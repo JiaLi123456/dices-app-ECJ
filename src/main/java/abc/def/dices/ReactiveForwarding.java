@@ -605,7 +605,8 @@ public class ReactiveForwarding {
                 if (solutionTree!=null)
                     log.info(((GPIndividual)solutionTree).toGPString());
                 CongestionProblem temCongestionProblem = dynamicAdaptiveControlTask.getTempCongestionProblem();
-                //System.out.println(macAddress+" : "+id.mac()+" || "+getCurrentTime());
+               // System.out.println(macAddress+" : "+id.mac());
+                dynamicAdaptiveControlTask.setLinkService(linkService);
 
                 linkWeighter = dynamicAdaptiveControlTask.getLinkWeights(linkService, solutionTree, temCongestionProblem);
 
@@ -640,9 +641,11 @@ public class ReactiveForwarding {
                         newPathString = newPathString + nl.src().toString() + "_" + nl.dst().toString() + " | ";
                     }
                     log.info("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
+                    //System.out.println("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
                 }
                 else
                     log.info("null path "+macAddress.toString() + " : " + dst.mac().toString() );
+
 
             }
 

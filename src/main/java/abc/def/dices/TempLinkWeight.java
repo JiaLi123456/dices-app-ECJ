@@ -52,9 +52,9 @@ public class TempLinkWeight implements LinkWeigher{
         return ScalarWeight.NON_VIABLE_WEIGHT;
     }
 
-    public int getLinkWeight(Link l) {
+    public double getLinkWeight(Link l) {
         ScalarWeight weight = edgeCostMap.get(l);
-        return (int)weight.value();
+        return weight.value();
     }
 
     public void setLinkWeight(Link l, int weight) {

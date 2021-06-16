@@ -118,6 +118,9 @@ public class DynamicAdaptiveControlTask extends TimerTask {
                     }
                 }else
                     fitness="";
+                FileWriter fw1=new FileWriter(Config.TimeFile,true);
+                fw1.append(getGPRound()+"\t"+(time2-time1)+"\t"+fitness+"\r\n");
+                fw1.flush();
                 System.out.println(getGPRound()+"\t"+(time2-time1)+"\t"+fitness);
             }
             long computingTime = System.currentTimeMillis() - initTime;
@@ -203,16 +206,17 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         if (solutionTree==null){
             return DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         }
-        Map<Link,Integer> linkWeight=runner.getWeightUsingSolutionTree(solutionTree, link, tempCongetsionProblem);
+        Map<Link,Integer> linkWeight=runner.getWeightUsingSolutionTree(solutionTree, linkService, tempCongetsionProblem);
         if (linkWeight==null)
             return DynamicLinkWeight.DYNAMIC_LINK_WEIGHT;
         for (Link l:linkService.getLinks()){
-            int weight=linkWeight.get(l);
+            double weight=linkWeight.get(l);
             if ( weight > Config.LARGE_NUM) {
-                weight = (int)Config.LARGE_NUM;
+                weight = Config.LARGE_NUM;
             }
+
             log.info("for updates link weight: new weights of "+l.src().toString()+" : "+l.dst().toString()+" is:"+weight);
-            linkWeights.setLinkWeight(l, weight);
+            linkWeights.setLinkWeight(l, (int)weight);
         }
         return linkWeights;
     }
