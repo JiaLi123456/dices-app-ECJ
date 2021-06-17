@@ -26,5 +26,6 @@ public class Config {
     public static final int duplicateRetry=100;
     public static final boolean randomSearchFlag=false;
     public static final boolean singleObjective=true;
+    public static final boolean oldVersion=false;
 
 }

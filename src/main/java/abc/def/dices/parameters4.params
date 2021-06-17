@@ -60,8 +60,8 @@ gp.tc.0.fset = f0
 # the root GPNode of the tree must have its return type compatible with nil.
 gp.tc.0.returns = nil
 #generates arbitrary trees depth-ﬁrst using Koza’s RAMPED HALF-AND-HALF algorithm. You cannot request a size.
-gp.tc.0.init = ec.gp.build.PTC1
-gp.tc.0.init.expected-size = 10
+gp.tc.0.init = ec.gp.koza.HalfBuilder
+gp.tc.0.init.min-depth = 2
 gp.tc.0.init.max-depth = 7
 gp.tc.0.init.growp = 0.5
 
@@ -196,12 +196,9 @@ gp.tree.print-style = c
 
 # We have one function set, of class GPFunctionSet
 gp.fs.size = 1
-gp.fs.0 = ec.gp.build.PTCFunctionSet
+gp.fs.0 = ec.gp.GPFunctionSet
 # We'll call the function set "f0".
 gp.fs.0.name = f0
-
-gp.nc.0.prob = 1
-gp.nc.1.prob = 1
 
 
 # We have five functions in the function set.  They are:

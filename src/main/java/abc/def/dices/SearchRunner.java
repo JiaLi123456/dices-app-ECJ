@@ -197,11 +197,13 @@ public class SearchRunner {
             SimpleEvolutionState evaluatedState = (SimpleEvolutionState) Evolve.initialize(child, (int) t.getId(), out);
 
             state = evaluatedState;
-        long time2 = System.currentTimeMillis();
-       // System.out.println("time2： "+(time2-time1)+", "+getCurrentTime());
+
             evaluatedState.startFresh(this);
             int result = EvolutionState.R_NOTDONE;
+        long time2 = System.currentTimeMillis();
+        System.out.println("time1： "+(time2-time1)+", "+getCurrentTime());
             //////////////////////////////////////////////
+            int countG=0;
             while (result == EvolutionState.R_NOTDONE) {
                 /////////////////////////////////////////////////////////////
                 ////////////////////////////////////////////////////////////
@@ -249,10 +251,12 @@ public class SearchRunner {
                 }*/
                 ////////////////////////////////////////////////////////////
                 result=evaluatedState.evolve();
+                countG++;
             }
             //////////////////////////////////////////////
-        //long time3 = System.currentTimeMillis();
-        //System.out.println("time3: "+(time3-time2)+", "+getCurrentTime());
+        long time3 = System.currentTimeMillis();
+        System.out.println("time2: "+(time3-time2)+", "+getCurrentTime());
+        System.out.println("average time for one generation is : "+(time3-time2)/countG);
         Individual solutionTree=null;
             ArrayList<Individual>pops=new ArrayList<>();
         if(!Config.singleObjective) {
@@ -348,8 +352,9 @@ public class SearchRunner {
                 //////////////////////////////////////////////
 
                 congestionProblem = (CongestionProblem) evaluatedState.evaluator.p_problem;
-               // System.out.println("*  "+congestionProblem.toString());
+               System.out.println(congestionProblem.simPair());
                 List<SrcDstPair> srcDstPairs = congestionProblem.getSrcDstPair();
+               // congestionProblem.initialSimLink();
 
                 Map<SrcDstPair, Path> newMap = congestionProblem.simLink(evaluatedState, solutionTree, 0);
                 if (newMap!=null)
@@ -358,8 +363,12 @@ public class SearchRunner {
                     System.out.println(((GPIndividual) solutionTree).toGPString());
                     return;
                 }
-                for (SrcDstPair pair : srcDstPairs) {
-                    solutions.put(pair, newMap.get(pair).links());
+                for (SrcDstPair pair : newMap.keySet()) {
+                    if (srcDstPairs.contains(pair))
+                        solutions.put(pair, newMap.get(pair).links());
+                    else {
+                        solutions.put(pair, oldPath.get(pair));
+                    }
                 }
 
                 long computingTime = System.currentTimeMillis() - initTime;
@@ -388,7 +397,7 @@ public class SearchRunner {
             }
         }
         long time4 = System.currentTimeMillis();
-       // System.out.println("time4: "+(time4-time3)+", "+getCurrentTime());
+        System.out.println("time3: "+(time4-time3)+", "+getCurrentTime());
     }
 
     public void setFlag(boolean value){

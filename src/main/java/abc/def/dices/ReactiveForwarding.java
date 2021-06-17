@@ -599,7 +599,7 @@ public class ReactiveForwarding {
             ////////////////////////////////////////////////////////////////////
             //////////////////////////////////////////////////////////////////
             abc.def.dices.SrcDstPair sdPair= new abc.def.dices.SrcDstPair(macAddress,id.mac());
-            Path path=dynamicAdaptiveControlTask.getPath( sdPair);
+            Path path=dynamicAdaptiveControlTask.getPath(sdPair);
             if (path==null) {
                 solutionTree = dynamicAdaptiveControlTask.getSolutionTree();
                 if (solutionTree!=null)
@@ -641,7 +641,7 @@ public class ReactiveForwarding {
                         newPathString = newPathString + nl.src().toString() + "_" + nl.dst().toString() + " | ";
                     }
                     log.info("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
-                    //System.out.println("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
+                   //solutionPath System.out.println("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
                 }
                 else
                     log.info("null path "+macAddress.toString() + " : " + dst.mac().toString() );

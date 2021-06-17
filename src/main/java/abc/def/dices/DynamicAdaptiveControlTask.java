@@ -31,11 +31,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 public class DynamicAdaptiveControlTask extends TimerTask {
     private final Logger log = LoggerFactory.getLogger(getClass());
@@ -61,9 +57,10 @@ public class DynamicAdaptiveControlTask extends TimerTask {
     //private boolean firstOrNot=true;
     private boolean lastSolutionExist=false;
     private CongestionProblem tempCongetsionProblem;
-    private Map<SrcDstPair, Path>solutionPath=null;
+    private Map<SrcDstPair, Path>solutionPath;
     private boolean runnerFlag;
     private boolean firstSolution;
+    private boolean firstTime=true;
 
     private int nextMonitoringCnt;
 
@@ -77,7 +74,26 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         GPRound=0;
         runnerFlag=true;
         firstSolution=false;
+        solutionPath=new HashMap<>();
 
+
+
+    }
+    public void initialSolutionPath(){
+        Set<SrcDstPair> sdSet=monitorUtil.getAllSrcDstPairs( monitorUtil.getAllCurrentFlowEntries());
+        for (SrcDstPair sd : sdSet){
+            Host srcHost = hostService.getHost(HostId.hostId(sd.src));
+            DeviceId srcDevId = srcHost.location().deviceId();
+            Host dstHost = hostService.getHost(HostId.hostId(sd.dst));
+            DeviceId dstDevId = dstHost.location().deviceId();
+            Set<Path> allPathSet =
+                    topologyService.getKShortestPaths(
+                            topologyService.currentTopology(),
+                            srcDevId, dstDevId,
+                            DynamicLinkWeight.DYNAMIC_LINK_WEIGHT,
+                            Config.MAX_NUM_PATHS);
+            solutionPath.put(sd,(Path)allPathSet.toArray()[0]);
+        }
     }
 
     @Override
@@ -88,6 +104,11 @@ public class DynamicAdaptiveControlTask extends TimerTask {
             for (SrcDstPair sd : sdSet) {
                 log.info(sd.src + " | " + sd.dst + " : " + monitorUtil.getTxBitsPerSec(sd));
             }
+        }
+        if (firstTime)
+        {
+            initialSolutionPath();
+            firstTime=false;
         }
 
         try{
@@ -188,7 +209,14 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         if (runner.isSolvable()){ solutionTree=runner.getSolution();}
         oldRunner=runner;
         if (runner.isSolvable()){ tempCongetsionProblem=runner.getCongestionProblem();}
-        if (runner.isSolvable()){solutionPath=runner.getSolutionPath();}
+        if (runner.isSolvable()){
+            Map<SrcDstPair,Path> tempPaths=runner.getSolutionPath();
+            if (tempPaths!=null) {
+                for (SrcDstPair sd : tempPaths.keySet()) {
+                    solutionPath.put(sd, tempPaths.get(sd));
+                }
+            }
+        }
         if (runner.isSolvable()){
             firstSolution=true;
         }
@@ -235,12 +263,17 @@ public class DynamicAdaptiveControlTask extends TimerTask {
         Map<SrcDstPair, List<Link>> curSDLinkPathMap = runner.getCurrentLinkPath();
         Map<SrcDstPair, List<Link>> solSDLinkPathMap = runner.getSolutionLinkPath();
 
-        for (SrcDstPair sd : curSDLinkPathMap.keySet()) {
+        for (SrcDstPair sd : solSDLinkPathMap.keySet()) {
             List<Link> oLinkPath = curSDLinkPathMap.get(sd);
             List<Link> sLinkPath = solSDLinkPathMap.get(sd);
            // if (Config.test) {
+            try {
                 log.info(String.valueOf(sLinkPath.size()));
                 log.info(String.valueOf(oLinkPath.size()));
+            }
+            catch(Exception e){
+                System.out.println(sd.toString()+"      "+e.toString());
+            }
            // }
             List<Link> lcsLinkPath = runner.findLCS(oLinkPath, sLinkPath);
             addFlowEntry(sd, sLinkPath, lcsLinkPath);
