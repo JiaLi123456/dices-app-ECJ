@@ -641,7 +641,7 @@ public class ReactiveForwarding {
                         newPathString = newPathString + nl.src().toString() + "_" + nl.dst().toString() + " | ";
                     }
                     log.info("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
-                    //System.out.println("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
+                   // System.out.println("new flow from: " + macAddress.toString() + " : " + dst.mac().toString() + " : " + newPathString);
                 }
                 else
                     log.info("null path "+macAddress.toString() + " : " + dst.mac().toString() );

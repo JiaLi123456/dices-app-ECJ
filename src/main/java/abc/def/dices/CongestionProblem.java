@@ -222,6 +222,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 double fitness=0;
 
                 double maxEstimateUtilization = estimateMaxLinkUtilization();
+               // System.out.println(maxEstimateUtilization);
                 if (maxEstimateUtilization>Config.UTILIZATION_THRESHOLD){
                     fitness=maxEstimateUtilization/(maxEstimateUtilization+1)+2;
                 }else{
@@ -243,7 +244,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                     log.info("already evaluated, do nothing");
                 }
                 if (Config.collectFitness) {
-                    indsString.add(state.generation + "\t" + "\t" + "\t" + ((GPIndividual) ind).toGPString());
+                    indsString.add(state.generation + "\t" +  "\t" + ((GPIndividual) ind).toGPString());
                 }
             }
         } else {
@@ -331,11 +332,10 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
 
         for (Link l0:linkService.getLinks()){
             currentSimLinkThroughputMap.put(l0, (long) 0);
-            long delay = monitorUtil.getDelay(l0);
+            //long delay = monitorUtil.getDelay(l0);
             currentY=0.01;
-            currentZ=(double)delay;
-            currentY=currentY*100;
-            currentZ=currentZ*100;
+            //currentZ=(double)delay;
+
             try{
                 ((GPIndividual) ind).trees[0].child.eval(state, threadnum, input, stack, ((GPIndividual) ind), this);}
                 catch (Exception e){
@@ -374,7 +374,7 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
                 currentY=simUtilization;
                 if (currentY<0.01)
                     currentY=0.01;
-                currentY=currentY*100;
+               // currentY=currentY*100;
                 try{
                 ((GPIndividual)ind).trees[0].child.eval(state,threadnum,input,stack,((GPIndividual)ind),this);}
                 catch (Exception e){
@@ -502,13 +502,14 @@ public class CongestionProblem extends GPProblem implements SimpleProblemForm{
             currentY = monitorUtil.monitorLinkUtilization(l);
             if (currentY<0.01)
                 currentY=0.01;
-            currentY=100*currentY;
+            //currentY=100*currentY;
 
-            currentZ = (double) delay;
-            currentZ=100*currentZ;
+           // currentZ = (double) delay;
+            //currentZ=100*currentZ;
             try {
-            ((GPIndividual) tree).trees[0].child.eval(state, threadnum, input, stack, ((GPIndividual) tree), this);}
-            //System.out.println("new coming: util "+currentY+"   "+l.src().toString()+" : "+l.dst().toString()+" : "+input.x);}
+            ((GPIndividual) tree).trees[0].child.eval(state, threadnum, input, stack, ((GPIndividual) tree), this);
+            //System.out.println("new coming: util "+currentY+"   "+l.src().toString()+" : "+l.dst().toString()+" : "+input.x);
+                }
             catch (Exception e){
                 return null;
             }
