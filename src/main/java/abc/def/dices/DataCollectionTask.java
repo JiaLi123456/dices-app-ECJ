@@ -67,7 +67,9 @@ public class DataCollectionTask extends TimerTask {
         long currentMinute = totalMinutes % 60;
 
         try {
-            fw.write(utilization+"\t"+time+"\t"+currentMinute+":"+currentSecond+"\r\n");
+            //fw.write(utilization+"\t"+time+"\t"+currentMinute+":"+currentSecond+"\r\n");
+            if (utilization>0.09)
+                fw.write(utilization+"\r\n");
             time=time+1;
             //fw.write("\n");
         } catch (IOException e) {

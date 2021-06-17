@@ -34,7 +34,7 @@ public class W extends GPNode
                      final Problem problem)
     {
         DoubleData rd = ((DoubleData)(input));
-        rd.x = Config.UTILIZATION_THRESHOLD;
+        rd.x = 100*Config.UTILIZATION_THRESHOLD;
     }
 }
 
